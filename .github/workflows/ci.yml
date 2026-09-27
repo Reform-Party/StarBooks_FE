@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # 버전은 package.json의 "packageManager" 필드에서 읽습니다.
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Expo type declarations
+        # expo-env.d.ts 는 `expo start` 시 생성되며 gitignore 대상입니다.
+        # CI에는 없으므로 typecheck 전에 동일한 내용으로 만들어 줍니다.
+        run: printf '/// <reference types="expo/types" />\n' > expo-env.d.ts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Format check
+        run: pnpm exec prettier --check .
+
+      - name: Expo doctor
+        run: pnpm dlx expo-doctor@latest

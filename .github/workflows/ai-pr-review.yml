@@ -1,0 +1,39 @@
+name: AI PR Review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+  models: read
+  pull-requests: write
+
+concurrency:
+  group: ai-pr-review-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review PR with GitHub Models
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # pull_request_target grants a write-capable token. Check out ONLY the trusted
+      # base commit; never check out or execute code from the PR head.
+      - name: Check out trusted base workflow code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts/ai_pr_review.py
+          sparse-checkout-cone-mode: false
+
+      - name: Review and submit formal PR review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AI_REVIEW_MODEL: openai/gpt-4.1-mini
+        run: python3 .github/scripts/ai_pr_review.py

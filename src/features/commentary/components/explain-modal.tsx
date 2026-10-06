@@ -10,10 +10,17 @@ import { FONT, PAPER, STAR } from '@/features/commentary/constants/theme';
 import { TYPE } from '@/features/commentary/constants/typography';
 import { CATEGORY_COLOR, parseMarked } from '@/features/commentary/utils/game-logic';
 
-type Props = { from: GameNode; to: GameNode; description: string; onNext: () => void };
+type Props = {
+  from: GameNode;
+  to: GameNode;
+  description: string;
+  onNext: () => void;
+  // 'close': 3단계에서 선을 눌러 다시 볼 때 — 버튼이 "닫기"가 돼요
+  action?: 'next' | 'close';
+};
 
 // 관계 해설 (디자인 c2-explain): 종이 카드에 "A → B" + 서버가 준 관계 설명
-export default function ExplainModal({ from, to, description, onNext }: Props) {
+export default function ExplainModal({ from, to, description, onNext, action = 'next' }: Props) {
   return (
     <CenterModal width={520} top={58} style={styles.panel}>
       <GlassIconButton icon="x" size={32} label="닫기" onPress={onNext} style={styles.close} />
@@ -32,8 +39,8 @@ export default function ExplainModal({ from, to, description, onNext }: Props) {
         ))}
       </Text>
       <JellyButton tone="yellow" minWidth={150} onPress={onNext}>
-        다음
-        <Icon name="right" size={16} color={STAR.yellow.on} />
+        {action === 'close' ? '닫기' : '다음'}
+        {action === 'next' ? <Icon name="right" size={16} color={STAR.yellow.on} /> : null}
       </JellyButton>
     </CenterModal>
   );

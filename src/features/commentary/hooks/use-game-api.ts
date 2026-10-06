@@ -1,8 +1,9 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { skipToken, useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   answerQuiz,
   classifyNode,
+  fetchEdge,
   fetchGameGraph,
   requestQuiz,
   startGame,
@@ -39,5 +40,13 @@ export function useGameGraph(fairytaleId: number, enabled: boolean) {
     queryKey: ['game', 'graph', fairytaleId],
     queryFn: () => fetchGameGraph(fairytaleId),
     enabled,
+  });
+}
+
+// 3단계에서 선을 톡 누르면 그 관계 설명을 불러와요. (edgeId 가 없으면 요청하지 않아요)
+export function useGameEdge(edgeId: number | null) {
+  return useQuery({
+    queryKey: ['game', 'edge', edgeId],
+    queryFn: edgeId == null ? skipToken : () => fetchEdge(edgeId),
   });
 }

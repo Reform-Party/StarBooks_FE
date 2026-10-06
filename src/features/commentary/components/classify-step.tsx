@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
+import { isSessionExpired } from '@/features/commentary/api/game-api';
 import type { Category, GameNode } from '@/features/commentary/api/types';
 import Baskets from '@/features/commentary/components/baskets';
 import CenterModal from '@/features/commentary/components/center-modal';
@@ -31,13 +32,20 @@ type Props = {
   nodes: GameNode[];
   categories: Category[];
   onComplete: (order: number[]) => void;
+  onSessionExpired: () => void;
 };
 
 type Floating = Point & { id: number };
 type Toast = { title?: string; sub?: string } | null;
 
 // 1단계 · 분류하기: 트레이의 별을 끌어 알맞은 바구니에 놓아요. 정답은 드롭할 때마다 서버(/classify)가 판정해요.
-export default function ClassifyStep({ sessionId, nodes, categories, onComplete }: Props) {
+export default function ClassifyStep({
+  sessionId,
+  nodes,
+  categories,
+  onComplete,
+  onSessionExpired,
+}: Props) {
   const stage = useStage();
   const classify = useClassifyNode(sessionId);
   const [placed, setPlaced] = useState<number[]>([]);
@@ -76,7 +84,8 @@ export default function ClassifyStep({ sessionId, nodes, categories, onComplete 
       setWrong({ id, ...pt });
       showToast({});
       wobble(wob, () => setWrong(null));
-    } catch {
+    } catch (e) {
+      if (isSessionExpired(e)) return onSessionExpired();
       // 연결이 끊겨도 별은 트레이로 돌아가고, 다시 놓아볼 수 있어요.
       showToast({ title: '앗!', sub: '잠시 후 다시 놓아볼까요?' });
     }

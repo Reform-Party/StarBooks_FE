@@ -1,7 +1,8 @@
-import { request } from '@/features/commentary/api/api-client';
+import { ApiError, request } from '@/features/commentary/api/api-client';
 import type {
   Category,
   ClassifyData,
+  EdgeData,
   GameGraph,
   GameGraphData,
   GameStartData,
@@ -45,6 +46,8 @@ export async function answerQuiz(
     stageComplete: raw.stageComplete ?? raw.stage_complete ?? false,
     description: raw.description,
     hint: raw.hint,
+    selectedCharSpecies: raw.selectedCharSpecies,
+    selectedBackground: raw.selectedBackground,
     graph: raw.graph && {
       nodes: raw.graph.nodes,
       edges: raw.graph.edges.map((e) => ({
@@ -58,3 +61,8 @@ export async function answerQuiz(
 
 export const fetchGameGraph = (fairytaleId: number) =>
   request<GameGraphData>(`/api/game/graph?fairytale_id=${fairytaleId}`);
+
+export const fetchEdge = (edgeId: number) => request<EdgeData>(`/api/game/edge?edge_id=${edgeId}`);
+
+// 게임 세션이 서버에서 사라졌어요(GAME_404_1) → /api/game/start 부터 다시 해야 해요.
+export const isSessionExpired = (e: unknown) => e instanceof ApiError && e.code === 'GAME_404_1';

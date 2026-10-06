@@ -6,7 +6,7 @@ import { ApiError } from '@/features/commentary/api/api-client';
 import ClassifyStep from '@/features/commentary/components/classify-step';
 import CompleteStep from '@/features/commentary/components/complete-step';
 import GlassIconButton from '@/features/commentary/components/glass-icon-button';
-import LinkStep, { type Pair } from '@/features/commentary/components/link-step';
+import LinkStep, { type LinkedEdge } from '@/features/commentary/components/link-step';
 import Sky from '@/features/commentary/components/sky';
 import Stage from '@/features/commentary/components/stage';
 import StatusPanel from '@/features/commentary/components/status-panel';
@@ -30,7 +30,9 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
   const { mutate: start, data: game, error } = useStartGame();
   const [step, setStep] = useState<'classify' | 'link' | 'complete'>('classify');
   const [order, setOrder] = useState<number[]>([]);
-  const [edges, setEdges] = useState<Pair[]>([]);
+  const [edges, setEdges] = useState<LinkedEdge[]>([]);
+  // 게임 도중 서버 세션이 사라졌어요(GAME_404_1) → 처음부터 다시 시작해야 해요
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     start(fairytaleId);
@@ -42,8 +44,25 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
 
   if (!fontsLoaded) return null;
 
+  const restart = () => {
+    setExpired(false);
+    setStep('classify');
+    setOrder([]);
+    setEdges([]);
+    start(fairytaleId);
+  };
+
   const renderContent = () => {
     if (finished) {
+      if (graph.isError) {
+        return (
+          <StatusPanel
+            title="관계도를 불러오지 못했어요"
+            sub="잠시 후 다시 시도해 주세요."
+            onRetry={() => graph.refetch()}
+          />
+        );
+      }
       return graph.data ? (
         <CompleteStep
           nodes={graph.data.nodes}
@@ -64,12 +83,22 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
         />
       );
     }
+    if (expired) {
+      return (
+        <StatusPanel
+          title="시간이 지나서 게임이 끝났어요"
+          sub="처음부터 다시 해볼까요?"
+          onRetry={restart}
+        />
+      );
+    }
     if (!game) return null;
     const { sessionId, question } = game;
     const categories = question.categories.length ? question.categories : CATEGORIES;
     if (step === 'classify') {
       return (
         <ClassifyStep
+          key={sessionId}
           sessionId={sessionId}
           nodes={question.nodes}
           categories={categories}
@@ -77,12 +106,14 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
             setOrder(placed);
             setStep('link');
           }}
+          onSessionExpired={() => setExpired(true)}
         />
       );
     }
     if (step === 'link') {
       return (
         <LinkStep
+          key={sessionId}
           sessionId={sessionId}
           nodes={question.nodes}
           categories={categories}
@@ -91,6 +122,7 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
             setEdges(linked);
             setStep('complete');
           }}
+          onSessionExpired={() => setExpired(true)}
         />
       );
     }

@@ -10,32 +10,43 @@ import QuizModal, { type ChooseResult } from '@/features/commentary/components/q
 import StepHeader from '@/features/commentary/components/step-header';
 import WrongToast from '@/features/commentary/components/wrong-toast';
 import { HIT_R, LINK_AREA, type Point } from '@/features/commentary/constants/layout';
+import { isSessionExpired } from '@/features/commentary/api/game-api';
 import { useAnswerQuiz, useRequestQuiz } from '@/features/commentary/hooks/use-game-api';
 import { useStage } from '@/features/commentary/hooks/use-stage';
 import { dist, nodePositions, pairKey } from '@/features/commentary/utils/game-logic';
 
 export type Pair = { from: number; to: number };
+// 서버가 완성 그래프에 준 edgeId 가 있으면 3단계에서 선을 눌러 설명을 볼 수 있어요
+export type LinkedEdge = Pair & { edgeId?: number };
 
 type Props = {
   sessionId: string;
   nodes: GameNode[];
   categories: Category[];
   order: number[];
-  onComplete: (edges: Pair[]) => void;
+  onComplete: (edges: LinkedEdge[]) => void;
+  onSessionExpired: () => void;
 };
 
 type Pending = Pair & {
   quizId: string;
   choices: QuizChoice[];
   // 정답을 맞힌 뒤 채워져요
-  explain?: { description: string; stageComplete: boolean; edges?: Pair[] };
+  explain?: { description: string; stageComplete: boolean; edges?: LinkedEdge[] };
   phase: 'quiz' | 'explain';
 };
 type LineDragState = { from: number; origin: Point; at: Point; over: number | null };
 type Toast = { title: string; sub: string } | null;
 
 // 2단계 · 관계 잇기: 관계가 있는 별끼리 선을 긋고(/quiz) → 퀴즈(/quiz/answer) → 해설
-export default function LinkStep({ sessionId, nodes, categories, order, onComplete }: Props) {
+export default function LinkStep({
+  sessionId,
+  nodes,
+  categories,
+  order,
+  onComplete,
+  onSessionExpired,
+}: Props) {
   const stage = useStage();
   const requestQuiz = useRequestQuiz(sessionId);
   const answerQuiz = useAnswerQuiz(sessionId);
@@ -87,8 +98,12 @@ export default function LinkStep({ sessionId, nodes, categories, order, onComple
       const quiz = await requestQuiz.mutateAsync({ from: a, to: b });
       setPending({ from: a, to: b, quizId: quiz.quizId, choices: quiz.choices, phase: 'quiz' });
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'GAME_400_1') {
+      if (isSessionExpired(e)) {
+        onSessionExpired();
+      } else if (e instanceof ApiError && e.code === 'GAME_400_1') {
         showToast({ title: '아쉬워요!', sub: '이 두 별은 이어지지 않아요. 다른 별과 이어볼까요?' });
+      } else if (e instanceof ApiError && e.code === 'GAME_409_2') {
+        showToast({ title: '이미 이었어요!', sub: '다른 별을 이어볼까요?' });
       } else {
         showToast({ title: '앗!', sub: '잠시 후 다시 이어볼까요?' });
       }
@@ -145,11 +160,12 @@ export default function LinkStep({ sessionId, nodes, categories, order, onComple
         explain: {
           description: res.description ?? '',
           stageComplete: res.stageComplete,
-          edges: res.graph?.edges.map(({ from, to }) => ({ from, to })),
+          edges: res.graph?.edges,
         },
       });
       return 'correct';
-    } catch {
+    } catch (e) {
+      if (isSessionExpired(e)) onSessionExpired();
       return 'error';
     }
   };

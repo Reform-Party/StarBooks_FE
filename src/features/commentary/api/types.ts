@@ -44,6 +44,9 @@ export type ClassifyData = {
   stageComplete: boolean;
   hint?: string;
   nextStage?: 'ASSEMBLE';
+  // 아래는 stageComplete=true 일 때만 와요
+  selectedCharSpecies?: CharSpecies;
+  selectedBackground?: Background;
   question?: { nodes: GameNode[]; totalEdges: number };
 };
 
@@ -57,8 +60,14 @@ export type QuizAnswerData = {
   stageComplete: boolean;
   description?: string;
   hint?: string;
+  // 아래는 stageComplete=true 일 때만 와요
+  selectedCharSpecies?: CharSpecies;
+  selectedBackground?: Background;
   graph?: GameGraph;
 };
+
+// GET /api/game/edge
+export type EdgeData = { fromWord: string; toWord: string; description: string };
 
 // GET /api/game/graph
 export type GameGraphData = GameGraph & {

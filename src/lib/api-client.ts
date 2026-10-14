@@ -58,7 +58,10 @@ export async function authHeaders(extra: Record<string, string> = {}) {
 }
 
 // 실패 응답을 ApiError 로 바꿔요. (SSE 처럼 본문을 직접 읽는 곳에서도 써요)
-export async function toApiError(res: Response, fallback: string) {
+export async function toApiError(
+  res: { status: number; json: () => Promise<unknown> },
+  fallback: string,
+) {
   const body: unknown = await res.json().catch(() => null);
   const env = isEnvelope(body) ? body : null;
   return new ApiError(res.status, env?.code ?? `HTTP_${res.status}`, messageOf(body) ?? fallback);

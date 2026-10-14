@@ -9,6 +9,14 @@ export const SCREEN = {
   homeButtonX: 775, // 메인 버튼은 오른쪽 끝
 } as const;
 
+// 로그인 · 회원가입 · 아이 정보만 세로(402 × 874pt)로 그려요.
+export const PORTRAIT_SCREEN = {
+  width: 402,
+  height: 874,
+  safeX: 20,
+  topBarY: 62, // 상태 표시줄 · 다이내믹 아일랜드 아래
+} as const;
+
 export const MIN_TOUCH = 44; // Apple HIG
 
 export const RADIUS = { chip: 10, card: 14, basket: 18, panel: 22, pill: 999 } as const;

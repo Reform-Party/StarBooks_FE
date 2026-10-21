@@ -12,6 +12,7 @@ type Props = {
   // glass: 흰색 8% (메인 · 닫기) / panel: 남색 패널 (프로필 사진 위 카메라)
   fill?: 'glass' | 'panel';
   iconColor?: string;
+  disabled?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -23,6 +24,7 @@ export default function GlassIconButton({
   size = 40,
   fill = 'glass',
   iconColor,
+  disabled,
   onPress,
   style,
 }: Props) {
@@ -31,6 +33,8 @@ export default function GlassIconButton({
       width={size}
       height={size}
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={[
         styles.button,

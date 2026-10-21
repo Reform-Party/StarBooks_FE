@@ -1,3 +1,4 @@
+import { Platform, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { STAR, type StarColor } from '@/constants/colors';
@@ -15,14 +16,31 @@ type Props = {
   color?: StarColor;
   // 가로 크기(pt). 세로는 비율대로 맞춰요.
   size?: number;
+  // Glow (Figma 06): drop-shadow 0 8 16 (색 45%) + 0 2 6 (색 30%)
+  glow?: boolean;
+  // 이 색 한 가지로 칠한 별 (예: 오답 때 위에 겹치는 붉은 틴트)
+  tint?: string;
+};
+
+const hexToRgba = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 };
 
 // 메인 화면의 둥근 별. 왼쪽 위 흰 광택과 같은 색 테두리로 말랑한 느낌을 내요.
-export default function JellyStar({ color = 'yellow', size = VIEW_W }: Props) {
+export default function JellyStar({ color = 'yellow', size = VIEW_W, glow = false, tint }: Props) {
   const c = STAR[color];
   const id = `jelly-star-${color}`;
-  return (
-    <Svg width={size} height={(size * VIEW_H) / VIEW_W} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}>
+  const height = (size * VIEW_H) / VIEW_W;
+  if (tint) {
+    return (
+      <Svg width={size} height={height} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}>
+        <Path d={STAR_PATH} fill={tint} strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+  const star = (
+    <Svg width={size} height={height} viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}>
       <Defs>
         <RadialGradient
           id={id}
@@ -48,4 +66,30 @@ export default function JellyStar({ color = 'yellow', size = VIEW_W }: Props) {
       <Path d={SHINE_PATH} fill="#fff" opacity={0.6} />
     </Svg>
   );
+  if (!glow) return star;
+  // 안드로이드는 filter 의 drop-shadow 로 별 모양 그대로 빛을 줘요 (New Architecture).
+  if (Platform.OS === 'android') {
+    return (
+      <View
+        style={{
+          width: size,
+          height,
+          filter: `drop-shadow(0px 8px 16px ${hexToRgba(c.c300, 0.45)}) drop-shadow(0px 2px 6px ${hexToRgba(c.c300, 0.3)})`,
+        }}
+      >
+        {star}
+      </View>
+    );
+  }
+  // iOS 는 그림자가 별 모양을 따라가서 두 겹으로 겹쳐요.
+  return (
+    <View style={[styles.glowOuter, { width: size, height, shadowColor: c.c300 }]}>
+      <View style={[styles.glowInner, { shadowColor: c.c300 }]}>{star}</View>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  glowOuter: { shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 8 } },
+  glowInner: { shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 } },
+});

@@ -17,13 +17,24 @@ type Props = {
   // 스크림을 누르거나 안드로이드 뒤로 가기를 눌렀을 때. 없으면 스크림을 눌러도 닫히지 않아요.
   onRequestClose?: () => void;
   panelStyle?: StyleProp<ViewStyle>;
+  // 패널 위치(캔버스 위에서부터 pt). 없으면 가운데예요.
+  top?: number;
+  // 스크림 색. 없으면 PANEL.scrim (예: 뒤 화면이 비쳐 보여야 하는 완성 화면)
+  scrimColor?: string;
   children: ReactNode;
 };
 
 // 화면 가운데 뜨는 패널 + 어두운 스크림.
 // RN Modal 대신 부모 화면 위에 겹쳐 그려서, 874 × 402 디자인 좌표를 그대로 써요.
 // 부모 화면의 가장 마지막 자식으로 두세요.
-export default function CenterModal({ visible, onRequestClose, panelStyle, children }: Props) {
+export default function CenterModal({
+  visible,
+  onRequestClose,
+  panelStyle,
+  top,
+  scrimColor,
+  children,
+}: Props) {
   useEffect(() => {
     if (!visible || !onRequestClose) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -39,7 +50,11 @@ export default function CenterModal({ visible, onRequestClose, panelStyle, child
     <Animated.View
       entering={FadeIn.duration(DURATION.modal)}
       exiting={FadeOut.duration(DURATION.menu).easing(Easing.in(Easing.ease))}
-      style={styles.scrim}
+      style={[
+        styles.scrim,
+        top != null && { justifyContent: 'flex-start', paddingTop: top },
+        scrimColor != null && { backgroundColor: scrimColor },
+      ]}
       accessibilityViewIsModal
       onAccessibilityEscape={onRequestClose}
     >

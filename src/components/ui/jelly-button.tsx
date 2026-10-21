@@ -15,6 +15,8 @@ type Props = {
   tone?: JellyButtonTone;
   // 라벨 앞에 붙는 아이콘 (Icon · JellyStar)
   icon?: ReactNode;
+  // true 면 아이콘을 라벨 뒤에 붙여요 (예: 다음 →)
+  iconAfter?: boolean;
   width?: number;
   height?: number;
   disabled?: boolean;
@@ -29,6 +31,7 @@ export default function JellyButton({
   label,
   tone = 'yellow',
   icon,
+  iconAfter = false,
   width,
   height = 44,
   disabled,
@@ -68,13 +71,14 @@ export default function JellyButton({
           </Svg>
         </View>
       ) : null}
-      {icon}
+      {iconAfter ? null : icon}
       <Text
         numberOfLines={1}
         style={[tone === 'plain' ? styles.plainLabel : TYPE.button, { color: labelColor }]}
       >
         {label}
       </Text>
+      {iconAfter ? icon : null}
     </PressableScale>
   );
 }

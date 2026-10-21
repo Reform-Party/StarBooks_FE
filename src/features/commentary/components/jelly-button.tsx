@@ -1,7 +1,16 @@
-import { Children, type ReactNode } from 'react';
-import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Children, type ReactNode, useState } from 'react';
+import {
+  Animated,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import Text from '@/features/commentary/components/app-text';
+import { MOTION } from '@/features/commentary/constants/motion';
 import {
   FONT,
   GLASS,
@@ -9,11 +18,17 @@ import {
   RADIUS,
   STAR,
   type StarColor,
+  withAlpha,
 } from '@/features/commentary/constants/theme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type Props = {
   tone?: StarColor | 'glass';
   height?: number;
+  // 글자 길이를 모르는 버튼(서버가 만든 선택지)은 최소 높이만 정하고 늘어나게 해요
+  minHeight?: number;
+  numberOfLines?: number;
   width?: number;
   minWidth?: number;
   font?: 'pop' | 'sans';
@@ -29,6 +44,8 @@ type Props = {
 export default function JellyButton({
   tone = 'yellow',
   height = 44,
+  minHeight,
+  numberOfLines,
   width,
   minWidth,
   font = 'pop',
@@ -39,19 +56,14 @@ export default function JellyButton({
   style,
   children,
 }: Props) {
+  const press = useState(() => new Animated.Value(0))[0];
   const c = tone === 'glass' ? null : STAR[tone];
   const labelColor = c ? c.on : INK[1];
   const base: StyleProp<ViewStyle> = [
     styles.btn,
-    { height, width, minWidth, opacity: disabled ? 0.4 : 1 },
-    c
-      ? {
-          shadowColor: c.c500,
-          shadowOpacity: 0.38,
-          shadowRadius: 7,
-          shadowOffset: { width: 0, height: 6 },
-        }
-      : styles.glass,
+    minHeight ? { minHeight } : { height },
+    { width, minWidth, opacity: disabled ? 0.4 : 1 },
+    c ? { boxShadow: `0px 6px 14px ${withAlpha(c.c500, 0.38)}` } : styles.glass,
   ];
 
   const content = (
@@ -74,7 +86,12 @@ export default function JellyButton({
       {Children.map(children, (ch) =>
         typeof ch === 'string' || typeof ch === 'number' ? (
           <Text
-            style={[font === 'pop' ? styles.pop : styles.sans, { color: labelColor, fontSize }]}
+            numberOfLines={numberOfLines}
+            style={[
+              font === 'pop' ? styles.pop : styles.sans,
+              numberOfLines ? styles.wrap : null,
+              { color: labelColor, fontSize },
+            ]}
           >
             {ch}
           </Text>
@@ -92,16 +109,36 @@ export default function JellyButton({
       </View>
     );
   }
+
+  // 눌림: 0.94배 · 1pt 아래 · 투명도 88% · 스프링 0.2s (디자인 2 · 관계 퀴즈)
+  const animate = (to: number) =>
+    Animated.timing(press, {
+      toValue: to,
+      duration: MOTION.spring,
+      easing: MOTION.springEase,
+      useNativeDriver: true,
+    }).start();
+  const pressed = {
+    opacity: press.interpolate({ inputRange: [0, 1], outputRange: [1, MOTION.pressOpacity] }),
+    transform: [
+      { scale: press.interpolate({ inputRange: [0, 1], outputRange: [1, MOTION.pressScale] }) },
+      { translateY: press.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) },
+    ],
+  };
+
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => animate(1)}
+      onPressOut={() => animate(0)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [base, pressed && styles.pressed, style]}
+      accessibilityState={{ disabled: !!disabled }}
+      style={[base, pressed, style]}
     >
       {content}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -137,5 +174,5 @@ const styles = StyleSheet.create({
   hiBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 },
   pop: { fontFamily: FONT.pop, letterSpacing: 0 },
   sans: { fontFamily: FONT.sansBold, letterSpacing: -0.3 },
-  pressed: { transform: [{ scale: 0.94 }, { translateY: 1 }] },
+  wrap: { flexShrink: 1, textAlign: 'center' },
 });

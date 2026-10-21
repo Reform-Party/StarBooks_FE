@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import Text from '@/features/commentary/components/app-text';
 import JellyStar from '@/features/commentary/components/jelly-star';
 import { FONT, INK, type StarColor } from '@/features/commentary/constants/theme';
 

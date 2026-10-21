@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import Text from '@/features/commentary/components/app-text';
 import Chip from '@/features/commentary/components/chip';
 import Icon from '@/features/commentary/components/icon';
 import JellyButton from '@/features/commentary/components/jelly-button';

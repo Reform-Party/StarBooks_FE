@@ -6,14 +6,15 @@ import Svg, {
   G,
   LinearGradient,
   Path,
-  Polygon,
   RadialGradient,
   Rect,
   Stop,
 } from 'react-native-svg';
 
+import Twinkle from '@/features/commentary/components/twinkle';
 import { H, W } from '@/features/commentary/constants/layout';
-import { SKY } from '@/features/commentary/constants/theme';
+import { MILKY_WAY, SKY } from '@/features/commentary/constants/theme';
+import { useReduceMotion } from '@/features/commentary/hooks/use-motion';
 
 type Props = { dim?: boolean };
 
@@ -36,9 +37,7 @@ const TWINKLES: [number, number, string][] = [
   [559, 64, '#a5f3fc'],
   [297, 245, '#fde047'],
 ];
-const tw4 = (x: number, y: number, r: number) =>
-  `${x},${y - r} ${x + r * 0.3},${y - r * 0.3} ${x + r},${y} ${x + r * 0.3},${y + r * 0.3} ${x},${y + r} ${x - r * 0.3},${y + r * 0.3} ${x - r},${y} ${x - r * 0.3},${y - r * 0.3}`;
-const MILKY_WAY: [string, string, number][] = [
+const MILKY_WAY_BANDS: [string, string, number][] = [
   ['M 770,-10 Q 720,620 280,1010 L 520,1010 Q 820,580 820,-10 Z', 'url(#sky-mw-outer)', 0.45],
   ['M 780,-10 Q 710,610 300,1000 L 500,1000 Q 805,570 815,-10 Z', 'url(#sky-mw)', 0.5],
   ['M 790,-10 Q 700,600 350,1000 L 450,1000 Q 790,570 805,-10 Z', 'url(#sky-mw-core)', 0.55],
@@ -57,6 +56,7 @@ const DUST: [number, number, number][] = [
 ];
 
 function Sky({ dim = false }: Props) {
+  const still = useReduceMotion();
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width={W} height={H}>
@@ -95,16 +95,16 @@ function Sky({ dim = false }: Props) {
       >
         <Defs>
           <LinearGradient id="sky-mw-outer" x1="0.8" y1="0" x2="0.4" y2="1">
-            <Stop offset="0" stopColor="#38bdf8" stopOpacity={0.2} />
-            <Stop offset="0.5" stopColor="#c084fc" stopOpacity={0.18} />
-            <Stop offset="1" stopColor="#fde047" stopOpacity={0.2} />
+            <Stop offset="0" stopColor={MILKY_WAY[0]} stopOpacity={0.2} />
+            <Stop offset="0.5" stopColor={MILKY_WAY[2]} stopOpacity={0.18} />
+            <Stop offset="1" stopColor={MILKY_WAY[4]} stopOpacity={0.2} />
           </LinearGradient>
           <LinearGradient id="sky-mw" x1="0.8" y1="0" x2="0.4" y2="1">
-            <Stop offset="0" stopColor="#38bdf8" stopOpacity={0.65} />
-            <Stop offset="0.3" stopColor="#818cf8" stopOpacity={0.6} />
-            <Stop offset="0.6" stopColor="#c084fc" stopOpacity={0.55} />
-            <Stop offset="0.85" stopColor="#f472b6" stopOpacity={0.6} />
-            <Stop offset="1" stopColor="#fde047" stopOpacity={0.75} />
+            <Stop offset="0" stopColor={MILKY_WAY[0]} stopOpacity={0.65} />
+            <Stop offset="0.3" stopColor={MILKY_WAY[1]} stopOpacity={0.6} />
+            <Stop offset="0.6" stopColor={MILKY_WAY[2]} stopOpacity={0.55} />
+            <Stop offset="0.85" stopColor={MILKY_WAY[3]} stopOpacity={0.6} />
+            <Stop offset="1" stopColor={MILKY_WAY[4]} stopOpacity={0.75} />
           </LinearGradient>
           <LinearGradient id="sky-mw-core" x1="0.8" y1="0" x2="0.4" y2="1">
             <Stop offset="0" stopColor="#a5f3fc" stopOpacity={0.75} />
@@ -113,7 +113,7 @@ function Sky({ dim = false }: Props) {
             <Stop offset="1" stopColor="#fef08a" stopOpacity={0.85} />
           </LinearGradient>
         </Defs>
-        {MILKY_WAY.map(([d, fill, op], k) => (
+        {MILKY_WAY_BANDS.map(([d, fill, op], k) => (
           <G key={k} opacity={op}>
             <Path d={d} fill="none" stroke={fill} strokeWidth={70} strokeOpacity={0.12} />
             <Path d={d} fill="none" stroke={fill} strokeWidth={30} strokeOpacity={0.25} />
@@ -125,10 +125,11 @@ function Sky({ dim = false }: Props) {
         {DUST.map(([x, y, r], i) => (
           <Circle key={i} cx={x} cy={y} r={r} fill="#fff" opacity={0.8} />
         ))}
-        {TWINKLES.map(([x, y, c], i) => (
-          <Polygon key={i} points={tw4(x, y, 5)} fill={c} opacity={0.85} />
-        ))}
       </Svg>
+      {TWINKLES.map(([x, y, c], i) => (
+        // 한꺼번에 깜빡이지 않게 조금씩 늦춰 시작해요
+        <Twinkle key={i} x={x} y={y} color={c} delay={(i * 190) % 3000} still={still} />
+      ))}
     </View>
   );
 }

@@ -1,9 +1,10 @@
-import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { H, W } from '@/features/commentary/constants/layout';
 import { SKY } from '@/features/commentary/constants/theme';
-import { StageContext } from '@/features/commentary/hooks/use-stage';
+import { type StageFrame, StageContext } from '@/features/commentary/hooks/use-stage';
 
 type Props = { children: ReactNode };
 
@@ -13,22 +14,29 @@ export default function Stage({ children }: Props) {
   const scale = Math.min(width / W, height / H);
   const frameRef = useRef<View>(null);
   const origin = useRef({ x: 0, y: 0 });
+  const frame = useSharedValue<StageFrame>({ x: 0, y: 0, scale });
 
   const measure = useCallback(() => {
     frameRef.current?.measureInWindow((x, y) => {
       origin.current = { x, y };
+      frame.set({ x, y, scale });
     });
-  }, []);
+  }, [frame, scale]);
+
+  useEffect(() => {
+    measure();
+  }, [measure]);
 
   const api = useMemo(
     () => ({
       measure,
+      frame,
       toDesign: (pageX: number, pageY: number) => ({
         x: (pageX - origin.current.x) / scale,
         y: (pageY - origin.current.y) / scale,
       }),
     }),
-    [measure, scale],
+    [measure, scale, frame],
   );
 
   const offset = { x: (W * scale - W) / 2, y: (H * scale - H) / 2 };

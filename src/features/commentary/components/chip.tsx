@@ -1,13 +1,7 @@
 import { Children, type ReactNode } from 'react';
-import {
-  type StyleProp,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle } from 'react-native';
 
+import Text from '@/features/commentary/components/app-text';
 import {
   FONT,
   GLASS,

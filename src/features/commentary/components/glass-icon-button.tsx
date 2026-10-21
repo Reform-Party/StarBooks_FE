@@ -8,21 +8,32 @@ type Props = {
   label: string;
   size?: number;
   onPress?: () => void;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 // 유리 아이콘 버튼 (⌀40). 44pt 보다 작으면 hitSlop 으로 누를 자리를 넓혀요.
-export default function GlassIconButton({ icon, label, size = 40, onPress, style }: Props) {
+export default function GlassIconButton({
+  icon,
+  label,
+  size = 40,
+  onPress,
+  disabled = false,
+  style,
+}: Props) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       hitSlop={size < 44 ? (44 - size) / 2 : 0}
       style={({ pressed }) => [
         styles.btn,
         { width: size, height: size, borderRadius: size / 2 },
         pressed && styles.pressed,
+        disabled && styles.disabled,
         style,
       ]}
     >
@@ -38,10 +49,8 @@ const styles = StyleSheet.create({
     backgroundColor: GLASS.fill,
     borderWidth: 1,
     borderColor: GLASS.line,
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 6 },
+    boxShadow: '0px 6px 14px rgba(0,0,0,0.35)',
   },
   pressed: { transform: [{ scale: 0.92 }] },
+  disabled: { opacity: 0.4 },
 });

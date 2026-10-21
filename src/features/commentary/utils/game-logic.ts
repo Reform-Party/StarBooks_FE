@@ -12,7 +12,7 @@ export const CATEGORY_COLOR: Record<Category, StarColor> = {
 
 export const pairKey = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
-// 바구니 안 별 자리. 디자인 SCATTER 를 그대로 쓰고(1–3개), 4개 이상이면 지그재그로 계산해요.
+// 바구니 안 기본 자리. 디자인 SCATTER 를 그대로 쓰고(1–3개), 4개 이상이면 지그재그로 계산해요.
 // n 은 "그 바구니에 들어갈 별의 총 개수" — 별이 하나씩 들어와도 앞서 놓인 별이 움직이지 않아요.
 const SCATTER: Record<number, [number, number][][]> = {
   1: [[[0.5, 0.35]]],
@@ -40,26 +40,60 @@ const SCATTER: Record<number, [number, number][][]> = {
   ],
 };
 
-export function slotCenter(basketIndex: number, k: number, n: number, area: Area): Point {
-  let fx: number;
-  let fy: number;
+// 바구니 안 별 자리는 비율(fx, fy: 0~1)로 기억해요. 1단계(낮은 영역)와 2단계(높은 영역)에서
+// 같은 비율로 다시 계산하면 손으로 놓은 배치가 그대로 이어져요. (디자인: 비율 좌표 저장)
+export type Spot = { basket: number; fx: number; fy: number };
+export type Placement = Record<number, Spot>;
+
+const INSET = { left: 18, w: 144, top: 28, bottom: 72 };
+const clamp01 = (v: number) => {
+  'worklet';
+  return Math.min(1, Math.max(0, v));
+};
+
+export function spotToPoint({ basket, fx, fy }: Spot, area: Area): Point {
+  'worklet';
+  return {
+    x: basketX(basket) + INSET.left + fx * INSET.w,
+    y: area.top + INSET.top + fy * (area.h - INSET.top - INSET.bottom),
+  };
+}
+
+export function pointToSpot(pt: Point, basket: number, area: Area): Spot {
+  'worklet';
+  return {
+    basket,
+    fx: clamp01((pt.x - basketX(basket) - INSET.left) / INSET.w),
+    fy: clamp01((pt.y - area.top - INSET.top) / (area.h - INSET.top - INSET.bottom)),
+  };
+}
+
+// 길게 눌러 옮길 때 같은 바구니 밖으로 못 나가게 해요.
+export function clampToBasket(pt: Point, basket: number, area: Area): Point {
+  'worklet';
+  return spotToPoint(pointToSpot(pt, basket, area), area);
+}
+
+// 손으로 놓지 않은 별(톡 · 톡으로 넣기, 이미 끝낸 게임)의 기본 자리
+export function defaultSpot(basket: number, k: number, n: number): Spot {
   const pats = SCATTER[n];
   if (pats) {
     // 디자인: 바구니 1·2 → 첫 패턴, 3·4 → 둘째 패턴
-    [fx, fy] = pats[Math.floor(basketIndex / 2) % pats.length][k];
-  } else {
-    const cols = n <= 4 ? 2 : 3;
-    const xs = cols === 2 ? [0.3, 0.7] : [0.16, 0.5, 0.84];
-    fx = xs[k % cols] + (((k * 37) % 7) - 3) * 0.01; // 살짝 흔들어 손으로 놓은 느낌
-    fy = 0.06 + (0.88 * k) / (n - 1);
+    const [fx, fy] = pats[Math.floor(basket / 2) % pats.length][k];
+    return { basket, fx, fy };
   }
+  const cols = n <= 4 ? 2 : 3;
+  const xs = cols === 2 ? [0.3, 0.7] : [0.16, 0.5, 0.84];
+  // 살짝 흔들어 손으로 놓은 느낌
   return {
-    x: Math.round(basketX(basketIndex) + 18 + fx * 144),
-    y: Math.round(area.top + 28 + fy * (area.h - 100)),
+    basket,
+    fx: xs[k % cols] + (((k * 37) % 7) - 3) * 0.01,
+    fy: 0.06 + (0.88 * k) / (n - 1),
   };
 }
 
 export function basketAt(pt: Point, count: number, area: Area, pad = 10) {
+  'worklet';
   for (let i = 0; i < count; i++) {
     const x = basketX(i);
     if (
@@ -73,21 +107,18 @@ export function basketAt(pt: Point, count: number, area: Area, pad = 10) {
   return -1;
 }
 
-// 분류한 순서대로 바구니 안 자리를 정해요. 순서를 모르면(이미 끝낸 게임) 노드 순서를 써요.
+// 저장한 비율 자리가 있으면 그대로, 없으면 기본 자리로 별 위치를 정해요.
 export function nodePositions(
   nodes: GameNode[],
   categories: Category[],
-  order: number[],
+  placement: Placement,
   area: Area,
 ): Record<number, Point> {
   const pos: Record<number, Point> = {};
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const ordered = [...order, ...nodes.map((n) => n.id).filter((id) => !order.includes(id))];
-  categories.forEach((cat, i) => {
-    const inside = ordered.map((id) => byId.get(id)).filter((n) => n?.category === cat);
-    const total = nodes.filter((n) => n.category === cat).length;
+  categories.forEach((cat, basket) => {
+    const inside = nodes.filter((n) => n.category === cat);
     inside.forEach((n, k) => {
-      if (n) pos[n.id] = slotCenter(i, k, total, area);
+      pos[n.id] = spotToPoint(placement[n.id] ?? defaultSpot(basket, k, inside.length), area);
     });
   });
   return pos;

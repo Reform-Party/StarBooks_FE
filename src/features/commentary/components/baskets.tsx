@@ -1,20 +1,17 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Category } from '@/features/commentary/api/types';
 import JellyButton from '@/features/commentary/components/jelly-button';
 import JellyStar from '@/features/commentary/components/jelly-star';
 import { type Area, BASKET_W, basketX } from '@/features/commentary/constants/layout';
-import { GLASS, STAR } from '@/features/commentary/constants/theme';
+import { GLASS, STAR, withAlpha } from '@/features/commentary/constants/theme';
 import { CATEGORY_COLOR } from '@/features/commentary/utils/game-logic';
-
-const alpha = (hex: string, a: number) => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-};
 
 type Props = {
   categories: Category[];
   area: Area;
+  // 2단계 진입: from 영역에서 area 로 늘어나요 (progress 0 → 1)
+  grow?: { from: Area; progress: Animated.Value };
   // 3단계처럼 틀만 숨기기
   hide?: boolean;
   // 탭으로 고른 별이 있을 때 바구니를 눌러 넣기
@@ -28,11 +25,18 @@ type Props = {
 export default function Baskets({
   categories,
   area,
+  grow,
   hide = false,
   armed = false,
   hot = -1,
   onBasketPress,
 }: Props) {
+  const top = grow
+    ? grow.progress.interpolate({ inputRange: [0, 1], outputRange: [grow.from.top, area.top] })
+    : area.top;
+  const height = grow
+    ? grow.progress.interpolate({ inputRange: [0, 1], outputRange: [grow.from.h, area.h] })
+    : area.h;
   return categories.map((cat, i) => {
     const color = CATEGORY_COLOR[cat];
     const c = STAR[color];
@@ -41,26 +45,25 @@ export default function Baskets({
       : {
           backgroundColor:
             hot === i
-              ? alpha(c.c300, 0.14)
+              ? withAlpha(c.c300, 0.14)
               : armed
                 ? 'rgba(255,255,255,0.08)'
                 : 'rgba(255,255,255,0.05)',
-          borderColor: hot === i ? c.rim : alpha(c.rim, armed ? 0.7 : 0.4),
+          borderColor: hot === i ? c.rim : withAlpha(c.rim, armed ? 0.7 : 0.4),
           borderWidth: hot === i ? 2 : 1,
         };
     return (
-      <Pressable
+      <Animated.View
         key={cat}
-        disabled={!armed}
-        onPress={() => onBasketPress?.(i)}
-        accessibilityRole={armed ? 'button' : undefined}
-        accessibilityLabel={`${cat} 바구니`}
-        style={[
-          styles.basket,
-          { left: basketX(i), top: area.top, width: BASKET_W, height: area.h },
-          frame,
-        ]}
+        style={[styles.basket, { left: basketX(i), top, width: BASKET_W, height }, frame]}
       >
+        <Pressable
+          disabled={!armed}
+          onPress={() => onBasketPress?.(i)}
+          accessibilityRole={armed ? 'button' : undefined}
+          accessibilityLabel={`${cat} 바구니`}
+          style={StyleSheet.absoluteFill}
+        />
         {hide ? null : (
           <View style={styles.header} pointerEvents="none">
             <JellyButton tone={color} height={26} font="sans" fontSize={14.5} style={styles.label}>
@@ -69,7 +72,7 @@ export default function Baskets({
             </JellyButton>
           </View>
         )}
-      </Pressable>
+      </Animated.View>
     );
   });
 }

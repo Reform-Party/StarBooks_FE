@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
+import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { isSessionExpired } from '@/features/commentary/api/game-api';
 import type { Category, GameNode } from '@/features/commentary/api/types';
+import Text from '@/features/commentary/components/app-text';
 import Baskets from '@/features/commentary/components/baskets';
 import CenterModal from '@/features/commentary/components/center-modal';
 import FloatStar from '@/features/commentary/components/float-star';
+import GestureStar from '@/features/commentary/components/gesture-star';
 import Icon from '@/features/commentary/components/icon';
 import JellyButton from '@/features/commentary/components/jelly-button';
 import NodeTray from '@/features/commentary/components/node-tray';
@@ -18,25 +21,43 @@ import {
   BASKET_W,
   CLASSIFY_AREA,
   type Point,
+  TRAY,
   TRAY_STAR,
 } from '@/features/commentary/constants/layout';
-import { STAR } from '@/features/commentary/constants/theme';
+import { MOTION } from '@/features/commentary/constants/motion';
+import { SPACE, STAR } from '@/features/commentary/constants/theme';
 import { TYPE } from '@/features/commentary/constants/typography';
 import { useClassifyNode } from '@/features/commentary/hooks/use-game-api';
-import { wobble } from '@/features/commentary/hooks/use-motion';
+import { useScreenShake } from '@/features/commentary/hooks/use-motion';
 import { useStage } from '@/features/commentary/hooks/use-stage';
-import { basketAt, CATEGORY_COLOR, slotCenter } from '@/features/commentary/utils/game-logic';
+import {
+  basketAt,
+  CATEGORY_COLOR,
+  defaultSpot,
+  type Placement,
+  pointToSpot,
+  spotToPoint,
+} from '@/features/commentary/utils/game-logic';
+
+export type ClassifyResult = {
+  placement: Placement;
+  // 1단계 완료 응답이 준 2단계 노드 (없으면 /start 의 노드를 그대로 써요)
+  nextNodes?: GameNode[];
+};
 
 type Props = {
   sessionId: string;
   nodes: GameNode[];
   categories: Category[];
-  onComplete: (order: number[]) => void;
+  onComplete: (result: ClassifyResult) => void;
   onSessionExpired: () => void;
 };
 
-type Floating = Point & { id: number };
+// 틀린 별: 놓은 자리(from)에서 붉게 흔들린 뒤 목록 자리(to)로 돌아가요.
+type Wrong = { id: number; from: Point; to: Point };
 type Toast = { title?: string; sub?: string } | null;
+
+const TRAY_HOME: Point = { x: TRAY.left + TRAY.w / 2, y: TRAY.top + TRAY.h / 2 };
 
 // 1단계 · 분류하기: 트레이의 별을 끌어 알맞은 바구니에 놓아요. 정답은 드롭할 때마다 서버(/classify)가 판정해요.
 export default function ClassifyStep({
@@ -48,14 +69,21 @@ export default function ClassifyStep({
 }: Props) {
   const stage = useStage();
   const classify = useClassifyNode(sessionId);
-  const [placed, setPlaced] = useState<number[]>([]);
-  const [drag, setDrag] = useState<Floating | null>(null);
-  const [wrong, setWrong] = useState<Floating | null>(null);
+  const shake = useScreenShake();
+  const [placement, setPlacement] = useState<Placement>({});
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [hot, setHot] = useState(-1);
+  const [wrong, setWrong] = useState<Wrong | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [nextNodes, setNextNodes] = useState<GameNode[] | undefined>();
   const [done, setDone] = useState(false);
-  const wob = useState(() => new Animated.Value(0))[0];
-  const dragRef = useRef<Floating | null>(null);
+  const tint = useState(() => new Animated.Value(0))[0];
+  const back = useState(() => new Animated.Value(0))[0];
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const dragHot = useSharedValue(-1);
+  const origin = useRef<Point>(TRAY_HOME);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -67,23 +95,55 @@ export default function ClassifyStep({
   const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms));
   const showToast = (t: NonNullable<Toast>) => {
     setToast(t);
-    later(() => setToast(null), 1500);
+    later(() => setToast(null), MOTION.toast);
   };
 
-  const tray = useMemo(() => nodes.filter((n) => !placed.includes(n.id)), [nodes, placed]);
+  const placed = useMemo(() => new Set(Object.keys(placement).map(Number)), [placement]);
+  const tray = useMemo(() => nodes.filter((n) => !placed.has(n.id)), [nodes, placed]);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
-  const drop = async (id: number, basketIndex: number, pt: Point) => {
+  // 오답: 붉은 틴트 0.15s + 화면 흔들림 0.3s → 목록으로 복귀 스프링 0.3s
+  const playWrong = (w: Wrong) => {
+    setWrong(w);
+    tint.setValue(0);
+    back.setValue(0);
+    shake.run();
+    const half = MOTION.tint / 2;
+    Animated.sequence([
+      Animated.timing(tint, { toValue: 1, duration: half, useNativeDriver: true }),
+      Animated.timing(tint, { toValue: 0, duration: half, useNativeDriver: true }),
+      Animated.delay(MOTION.shake - MOTION.tint),
+      Animated.timing(back, {
+        toValue: 1,
+        duration: MOTION.back,
+        easing: MOTION.springEase,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setWrong(null));
+  };
+
+  const drop = async (id: number, basket: number, at: Point | null) => {
     try {
-      const res = await classify.mutateAsync({ nodeId: id, category: categories[basketIndex] });
+      const res = await classify.mutateAsync({ nodeId: id, category: categories[basket] });
       if (res.correct) {
-        setPlaced((p) => [...p, id]);
-        if (res.stageComplete) later(() => setDone(true), 450);
+        const cat = categories[basket];
+        const k = nodes.filter((n) => n.category === cat && placed.has(n.id)).length;
+        const total = nodes.filter((n) => n.category === cat).length;
+        // 놓은 자리를 그 바구니 안 비율로 기억해요. 톡 · 톡으로 넣었으면 기본 자리.
+        const spot = at ? pointToSpot(at, basket, CLASSIFY_AREA) : defaultSpot(basket, k, total);
+        setPlacement((p) => ({ ...p, [id]: spot }));
+        if (res.stageComplete) {
+          setNextNodes(res.question?.nodes);
+          later(() => setDone(true), 450);
+        }
         return;
       }
-      setWrong({ id, ...pt });
+      playWrong({
+        id,
+        from: at ?? { x: basketX(basket) + BASKET_W / 2, y: CLASSIFY_AREA.top + 60 },
+        to: origin.current,
+      });
       showToast({});
-      wobble(wob, () => setWrong(null));
     } catch (e) {
       if (isSessionExpired(e)) return onSessionExpired();
       // 연결이 끊겨도 별은 트레이로 돌아가고, 다시 놓아볼 수 있어요.
@@ -91,29 +151,30 @@ export default function ClassifyStep({
     }
   };
 
-  const setDragNow = (d: Floating | null) => {
-    dragRef.current = d;
-    setDrag(d);
-  };
   const trayDrag: TrayDrag = {
-    start: (id, px, py) => {
-      stage.measure();
+    frame: stage.frame,
+    x: dragX,
+    y: dragY,
+    hot: dragHot,
+    area: CLASSIFY_AREA,
+    basketCount: categories.length,
+    onStart: (id, x, y) => {
       setSelected(null);
-      setDragNow({ id, ...stage.toDesign(px, py) });
+      origin.current = { x, y };
+      setDragId(id);
     },
-    move: (px, py) => {
-      const d = dragRef.current;
-      if (d) setDragNow({ ...d, ...stage.toDesign(px, py) });
+    onHot: setHot,
+    onDrop: (id, x, y) => {
+      setDragId(null);
+      setHot(-1);
+      const basket = basketAt({ x, y }, categories.length, CLASSIFY_AREA);
+      // 바구니 밖에 놓으면 벌 없이 트레이로 돌아가요
+      if (basket >= 0) drop(id, basket, { x, y });
     },
-    end: (px, py) => {
-      const d = dragRef.current;
-      setDragNow(null);
-      if (!d) return;
-      const pt = stage.toDesign(px, py);
-      const i = basketAt(pt, categories.length, CLASSIFY_AREA);
-      if (i >= 0) drop(d.id, i, pt); // 바구니 밖에 놓으면 벌 없이 트레이로 돌아가요
+    onCancel: () => {
+      setDragId(null);
+      setHot(-1);
     },
-    cancel: () => setDragNow(null),
   };
 
   // 톡 고르고 → 바구니 톡 (끌기 대신)
@@ -121,15 +182,25 @@ export default function ClassifyStep({
     if (selected == null) return;
     const id = selected;
     setSelected(null);
-    drop(id, i, { x: basketX(i) + BASKET_W / 2, y: CLASSIFY_AREA.top + CLASSIFY_AREA.h / 2 });
+    origin.current = TRAY_HOME;
+    drop(id, i, null);
   };
 
-  const hot = drag ? basketAt(drag, categories.length, CLASSIFY_AREA) : -1;
-  const dragNode = drag ? byId.get(drag.id) : undefined;
+  const handleMoved = (id: number, at: Point) =>
+    setPlacement((p) => {
+      const spot = p[id];
+      return spot ? { ...p, [id]: pointToSpot(at, spot.basket, CLASSIFY_AREA) } : p;
+    });
+
+  const floating = useAnimatedStyle(() => ({
+    transform: [{ translateX: dragX.value }, { translateY: dragY.value - 14 }],
+  }));
+
+  const dragNode = dragId != null ? byId.get(dragId) : undefined;
   const wrongNode = wrong ? byId.get(wrong.id) : undefined;
 
   return (
-    <>
+    <Animated.View style={[StyleSheet.absoluteFill, shake.style]} pointerEvents="box-none">
       <StepHeader step={1} title="별을 알맞은 곳에 놓아보세요!" />
       <Baskets
         categories={categories}
@@ -138,66 +209,72 @@ export default function ClassifyStep({
         armed={selected != null}
         onBasketPress={handleBasketPress}
       />
-      {categories.map((cat, i) => {
-        const total = nodes.filter((n) => n.category === cat).length;
-        const inside = placed.map((id) => byId.get(id)).filter((n) => n?.category === cat);
-        return inside.map((n, k) => {
-          if (!n) return null;
-          const p = slotCenter(i, k, total, CLASSIFY_AREA);
-          return (
-            <StarNode
-              key={n.id}
-              color={CATEGORY_COLOR[cat]}
-              name={n.word}
-              cx={p.x}
-              cy={p.y}
-              pop
-              style={styles.placed}
-              accessibilityLabel={`${cat} 바구니의 ${n.word}`}
-            />
-          );
-        });
+      {Object.entries(placement).map(([key, spot]) => {
+        const n = byId.get(Number(key));
+        if (!n) return null;
+        const p = spotToPoint(spot, CLASSIFY_AREA);
+        return (
+          <GestureStar
+            key={n.id}
+            node={n}
+            basket={spot.basket}
+            area={CLASSIFY_AREA}
+            cx={p.x}
+            cy={p.y}
+            pop
+            accessibilityLabel={`${n.category} 바구니의 ${n.word}`}
+            onMoved={handleMoved}
+          />
+        );
       })}
 
-      {tray.length > 0 ? (
-        <NodeTray
-          nodes={tray}
-          selectedId={selected}
-          draggingId={drag?.id ?? wrong?.id ?? null}
-          disabled={classify.isPending}
-          drag={trayDrag}
-          onSelect={setSelected}
-        />
-      ) : null}
+      <NodeTray
+        nodes={tray}
+        selectedId={selected}
+        draggingId={dragId ?? wrong?.id ?? null}
+        disabled={classify.isPending}
+        drag={trayDrag}
+        onSelect={setSelected}
+      />
 
       {wrong && wrongNode ? (
         <StarNode
-          color="grey"
+          color={CATEGORY_COLOR[wrongNode.category]}
           name={wrongNode.word}
-          cx={wrong.x}
-          cy={wrong.y}
+          cx={wrong.from.x}
+          cy={wrong.from.y}
+          tint={tint}
           style={[
             styles.wrong,
             {
               transform: [
                 {
-                  rotate: wob.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] }),
+                  translateX: back.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, wrong.to.x - wrong.from.x],
+                  }),
+                },
+                {
+                  translateY: back.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, wrong.to.y - wrong.from.y],
+                  }),
                 },
               ],
             },
           ]}
         />
       ) : null}
-      {drag && dragNode ? (
-        <View pointerEvents="none" style={styles.dragLayer}>
+      {dragNode ? (
+        <Reanimated.View pointerEvents="none" style={[styles.dragLayer, floating]}>
           <StarNode
-            color="grey"
+            color={CATEGORY_COLOR[dragNode.category]}
             name={dragNode.word}
-            cx={drag.x}
-            cy={drag.y - 14}
+            cx={0}
+            cy={0}
             size={TRAY_STAR + 6}
           />
-        </View>
+        </Reanimated.View>
       ) : null}
 
       <WrongToast visible={toast != null} title={toast?.title} sub={toast?.sub} />
@@ -210,21 +287,24 @@ export default function ClassifyStep({
             <FloatStar color="purple" size={40} variant="alt" />
           </View>
           <Text style={[TYPE.title, styles.doneTitle]}>모든 카드를 분류했어요!</Text>
-          <JellyButton tone="yellow" minWidth={160} onPress={() => onComplete(placed)}>
+          <JellyButton
+            tone="yellow"
+            minWidth={160}
+            onPress={() => onComplete({ placement, nextNodes })}
+          >
             다음 단계로
             <Icon name="right" size={16} color={STAR.yellow.on} />
           </JellyButton>
         </CenterModal>
       ) : null}
-    </>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  placed: { zIndex: 2 },
   wrong: { zIndex: 15 },
   dragLayer: { position: 'absolute', left: 0, top: 0, zIndex: 16 },
-  donePanel: { padding: 22, alignItems: 'center', gap: 10 },
-  stars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  donePanel: { padding: SPACE.xl, alignItems: 'center', gap: SPACE.m },
+  stars: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACE.xxs },
   doneTitle: { fontSize: 31, lineHeight: 37, textAlign: 'center' },
 });

@@ -1,19 +1,24 @@
 import { useFonts } from 'expo-font';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ApiError } from '@/features/commentary/api/api-client';
-import ClassifyStep from '@/features/commentary/components/classify-step';
+import type { Category, GameNode } from '@/features/commentary/api/types';
+import { FontsReadyContext } from '@/features/commentary/components/app-text';
+import ClassifyStep, { type ClassifyResult } from '@/features/commentary/components/classify-step';
 import CompleteStep from '@/features/commentary/components/complete-step';
+import FadeIn from '@/features/commentary/components/fade-in';
 import GlassIconButton from '@/features/commentary/components/glass-icon-button';
-import LinkStep, { type LinkedEdge } from '@/features/commentary/components/link-step';
+import GraphSkeleton from '@/features/commentary/components/graph-skeleton';
+import LinkStep, { type LinkResult } from '@/features/commentary/components/link-step';
 import Sky from '@/features/commentary/components/sky';
 import Stage from '@/features/commentary/components/stage';
 import StatusPanel from '@/features/commentary/components/status-panel';
 import { COMMENTARY_FONTS } from '@/features/commentary/constants/fonts';
-import { HOME_BTN } from '@/features/commentary/constants/layout';
+import { CLASSIFY_AREA, HOME_BTN, LINK_AREA } from '@/features/commentary/constants/layout';
+import { MOTION } from '@/features/commentary/constants/motion';
 import { useGameGraph, useStartGame } from '@/features/commentary/hooks/use-game-api';
-import type { Category } from '@/features/commentary/api/types';
 
 const CATEGORIES: Category[] = ['등장인물', '장소', '사건', '교훈'];
 
@@ -26,13 +31,15 @@ type Props = { fairytaleId: number; onHome: () => void };
  *  3. 별자리 완성
  */
 export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
-  const [fontsLoaded] = useFonts(COMMENTARY_FONTS);
-  const { mutate: start, data: game, error } = useStartGame();
+  // 글꼴을 못 불러와도 화면은 그려요 (시스템 글꼴로)
+  const [fontsLoaded, fontError] = useFonts(COMMENTARY_FONTS);
+  const { mutate: start, data: game, error, isPending: starting } = useStartGame();
   const [step, setStep] = useState<'classify' | 'link' | 'complete'>('classify');
-  const [order, setOrder] = useState<number[]>([]);
-  const [edges, setEdges] = useState<LinkedEdge[]>([]);
+  const [classified, setClassified] = useState<ClassifyResult>({ placement: {} });
+  const [linked, setLinked] = useState<LinkResult>({ edges: [], placement: {} });
   // 게임 도중 서버 세션이 사라졌어요(GAME_404_1) → 처음부터 다시 시작해야 해요
   const [expired, setExpired] = useState(false);
+  const leave = useState(() => new Animated.Value(1))[0];
 
   useEffect(() => {
     start(fairytaleId);
@@ -42,14 +49,24 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
   const finished = error instanceof ApiError && error.code === 'GAME_409_1';
   const graph = useGameGraph(fairytaleId, finished);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   const restart = () => {
     setExpired(false);
     setStep('classify');
-    setOrder([]);
-    setEdges([]);
+    setClassified({ placement: {} });
+    setLinked({ edges: [], placement: {} });
     start(fairytaleId);
+  };
+
+  // 메인으로: 디졸브 0.3s 뒤 이동
+  const handleHome = () => {
+    Animated.timing(leave, {
+      toValue: 0,
+      duration: MOTION.dissolve,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => onHome());
   };
 
   const renderContent = () => {
@@ -63,15 +80,16 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
           />
         );
       }
-      return graph.data ? (
+      if (!graph.data) return <GraphSkeleton categories={CATEGORIES} area={LINK_AREA} />;
+      return (
         <CompleteStep
           nodes={graph.data.nodes}
           categories={CATEGORIES}
-          order={[]}
+          placement={{}}
           edges={graph.data.edges}
-          onHome={onHome}
+          onHome={handleHome}
         />
-      ) : null;
+      );
     }
     if (error) {
       const notReady = error instanceof ApiError && error.code === 'GAME_404_3';
@@ -92,9 +110,11 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
         />
       );
     }
-    if (!game) return null;
+    if (!game || starting) return <GraphSkeleton categories={CATEGORIES} area={CLASSIFY_AREA} />;
     const { sessionId, question } = game;
     const categories = question.categories.length ? question.categories : CATEGORIES;
+    // 2단계부터는 1단계 완료 응답이 준 노드를 써요 (없으면 /start 의 노드)
+    const linkNodes: GameNode[] = classified.nextNodes ?? question.nodes;
     if (step === 'classify') {
       return (
         <ClassifyStep
@@ -102,8 +122,8 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
           sessionId={sessionId}
           nodes={question.nodes}
           categories={categories}
-          onComplete={(placed) => {
-            setOrder(placed);
+          onComplete={(result) => {
+            setClassified(result);
             setStep('link');
           }}
           onSessionExpired={() => setExpired(true)}
@@ -115,11 +135,11 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
         <LinkStep
           key={sessionId}
           sessionId={sessionId}
-          nodes={question.nodes}
+          nodes={linkNodes}
           categories={categories}
-          order={order}
-          onComplete={(linked) => {
-            setEdges(linked);
+          placement={classified.placement}
+          onComplete={(result) => {
+            setLinked(result);
             setStep('complete');
           }}
           onSessionExpired={() => setExpired(true)}
@@ -128,27 +148,39 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
     }
     return (
       <CompleteStep
-        nodes={question.nodes}
+        nodes={linkNodes}
         categories={categories}
-        order={order}
-        edges={edges}
-        onHome={onHome}
+        placement={linked.placement}
+        edges={linked.edges}
+        onHome={handleHome}
       />
     );
   };
 
   return (
-    <Stage>
-      <Sky dim />
-      {/* 메인 버튼은 모달 아래에 깔려야 해서 단계 화면보다 먼저 그려요 */}
-      <View style={styles.home}>
-        <GlassIconButton icon="home" size={HOME_BTN.size} label="메인으로" onPress={onHome} />
-      </View>
-      {renderContent()}
-    </Stage>
+    <GestureHandlerRootView style={styles.root}>
+      <FontsReadyContext.Provider value={fontsLoaded}>
+        <Stage>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: leave }]}>
+            <Sky dim />
+            {/* 메인 버튼은 모달 아래에 깔려야 해서 단계 화면보다 먼저 그려요 */}
+            <View style={styles.home}>
+              <GlassIconButton
+                icon="home"
+                size={HOME_BTN.size}
+                label="메인으로"
+                onPress={handleHome}
+              />
+            </View>
+            <FadeIn key={step}>{renderContent()}</FadeIn>
+          </Animated.View>
+        </Stage>
+      </FontsReadyContext.Provider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   home: { position: 'absolute', left: HOME_BTN.left, top: HOME_BTN.top },
 });

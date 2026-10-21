@@ -9,7 +9,10 @@ export type Point = { x: number; y: number };
 
 // 바구니 4개: x 59 → 815, 폭 180, 간격 12
 export const BASKET_W = 180;
-export const basketX = (i: number) => SX + i * 192;
+export const basketX = (i: number) => {
+  'worklet';
+  return SX + i * 192;
+};
 
 // 단계별 바구니 영역 (디자인 c1 / c2)
 export const CLASSIFY_AREA: Area = { top: 102, h: 170 };

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing } from 'react-native';
 
+import { MOTION } from '@/features/commentary/constants/motion';
+
 // "동작 줄이기"가 켜져 있으면 반복 움직임을 모두 멈춰요 (디자인: Reduced motion)
-function useReduceMotion() {
+export function useReduceMotion() {
   const [on, setOn] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -55,13 +57,29 @@ export function useFloat(variant: 'slow' | 'alt' = 'slow') {
   };
 }
 
-// 틀렸을 때 도리도리 (wobble .5s × 3 → 아이가 기다리지 않게 .3s × 3)
-export function wobble(value: Animated.Value, onEnd?: () => void) {
-  const step = (to: number) =>
-    Animated.timing(value, { toValue: to, duration: 75, useNativeDriver: true });
-  Animated.sequence([step(-1), step(1), step(-1), step(1), step(-1), step(1), step(0)]).start(() =>
-    onEnd?.(),
-  );
+// 틀렸을 때 흔들림: 좌우 6pt · 0.3s (디자인 1 · 틀렸을 때). value 는 -1 ~ 1 로 움직여요.
+export function shake(value: Animated.Value, onEnd?: () => void) {
+  const step = MOTION.shake / 5;
+  const to = (v: number) =>
+    Animated.timing(value, { toValue: v, duration: step, useNativeDriver: true });
+  Animated.sequence([to(-1), to(1), to(-1), to(1), to(0)]).start(() => onEnd?.());
+}
+
+export const shakeX = (value: Animated.Value) => ({
+  transform: [
+    {
+      translateX: value.interpolate({
+        inputRange: [-1, 1],
+        outputRange: [-MOTION.shakePx, MOTION.shakePx],
+      }),
+    },
+  ],
+});
+
+// 화면 전체 흔들기: 단계 화면을 감싼 뷰에 style 을 주고, 틀렸을 때 run() 해요.
+export function useScreenShake() {
+  const v = useState(() => new Animated.Value(0))[0];
+  return { style: shakeX(v), run: () => shake(v) };
 }
 
 // 선택된 별 둘레에서 퍼지는 링 (pulseRing)

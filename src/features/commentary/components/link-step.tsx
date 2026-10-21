@@ -1,30 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, StyleSheet } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { ApiError } from '@/features/commentary/api/api-client';
-import type { Category, GameNode, QuizChoice } from '@/features/commentary/api/types';
+import { isSessionExpired } from '@/features/commentary/api/game-api';
+import type { Category, GameNode, GraphEdge, QuizChoice } from '@/features/commentary/api/types';
 import Baskets from '@/features/commentary/components/baskets';
-import DraggableNode, { type LineDrag } from '@/features/commentary/components/draggable-node';
+import DragLine from '@/features/commentary/components/drag-line';
 import ExplainModal from '@/features/commentary/components/explain-modal';
+import GestureStar, {
+  type LineDrag,
+  type LineTarget,
+} from '@/features/commentary/components/gesture-star';
 import LinkLines from '@/features/commentary/components/link-lines';
+import { TRAY_FRAME } from '@/features/commentary/components/node-tray';
 import QuizModal, { type ChooseResult } from '@/features/commentary/components/quiz-modal';
 import StepHeader from '@/features/commentary/components/step-header';
 import WrongToast from '@/features/commentary/components/wrong-toast';
-import { HIT_R, LINK_AREA, type Point } from '@/features/commentary/constants/layout';
-import { isSessionExpired } from '@/features/commentary/api/game-api';
+import {
+  CLASSIFY_AREA,
+  H,
+  LINK_AREA,
+  type Point,
+  TRAY,
+} from '@/features/commentary/constants/layout';
+import { MOTION } from '@/features/commentary/constants/motion';
 import { useAnswerQuiz, useRequestQuiz } from '@/features/commentary/hooks/use-game-api';
+import { useScreenShake } from '@/features/commentary/hooks/use-motion';
 import { useStage } from '@/features/commentary/hooks/use-stage';
-import { dist, nodePositions, pairKey } from '@/features/commentary/utils/game-logic';
+import {
+  nodePositions,
+  pairKey,
+  type Placement,
+  pointToSpot,
+} from '@/features/commentary/utils/game-logic';
+import { haptic } from '@/features/commentary/utils/haptics';
 
 export type Pair = { from: number; to: number };
 // 서버가 완성 그래프에 준 edgeId 가 있으면 3단계에서 선을 눌러 설명을 볼 수 있어요
-export type LinkedEdge = Pair & { edgeId?: number };
+export type LinkedEdge = GraphEdge;
+export type LinkResult = { edges: LinkedEdge[]; placement: Placement };
 
 type Props = {
   sessionId: string;
   nodes: GameNode[];
   categories: Category[];
-  order: number[];
-  onComplete: (edges: LinkedEdge[]) => void;
+  placement: Placement;
+  onComplete: (result: LinkResult) => void;
   onSessionExpired: () => void;
 };
 
@@ -35,58 +57,88 @@ type Pending = Pair & {
   explain?: { description: string; stageComplete: boolean; edges?: LinkedEdge[] };
   phase: 'quiz' | 'explain';
 };
-type LineDragState = { from: number; origin: Point; at: Point; over: number | null };
-type Toast = { title: string; sub: string } | null;
+type Made = Pair & { fresh: boolean };
+type Toast = { title?: string; sub: string; raised?: boolean } | null;
 
 // 2단계 · 관계 잇기: 관계가 있는 별끼리 선을 긋고(/quiz) → 퀴즈(/quiz/answer) → 해설
 export default function LinkStep({
   sessionId,
   nodes,
   categories,
-  order,
+  placement: initialPlacement,
   onComplete,
   onSessionExpired,
 }: Props) {
   const stage = useStage();
   const requestQuiz = useRequestQuiz(sessionId);
   const answerQuiz = useAnswerQuiz(sessionId);
-  const pos = useMemo(
-    () => nodePositions(nodes, categories, order, LINK_AREA),
-    [nodes, categories, order],
-  );
-  const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
-  const [made, setMade] = useState<Pair[]>([]);
-  const [drag, setDrag] = useState<LineDragState | null>(null);
+  const shake = useScreenShake();
+  const [placement, setPlacement] = useState(initialPlacement);
+  // 처음엔 1단계 크기로 그렸다가, 트레이가 내려가며 2단계 크기로 늘어나요
+  const [entered, setEntered] = useState(false);
+  const [made, setMade] = useState<Made[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
+  const [over, setOver] = useState(-1);
   const [pending, setPending] = useState<Pending | null>(null);
   const [toast, setToast] = useState<Toast>(null);
-  const dragRef = useRef<LineDragState | null>(null);
+  const [wrongPair, setWrongPair] = useState<Pair | null>(null);
+  const grow = useState(() => new Animated.Value(0))[0];
+  const tint = useState(() => new Animated.Value(0))[0];
+  const wrongLine = useState(() => new Animated.Value(0))[0];
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // 지금 열려 있는 퀴즈. 응답을 기다리는 사이 닫히거나 바뀌면 늦게 온 응답을 버려요.
+  const activeQuiz = useRef<string | null>(null);
+
+  const area = entered ? LINK_AREA : CLASSIFY_AREA;
+  const pos = useMemo(
+    () => nodePositions(nodes, categories, placement, area),
+    [nodes, categories, placement, area],
+  );
+  const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+
+  const lineFrom = useSharedValue(-1);
+  const lineEnd = useSharedValue<Point>({ x: 0, y: 0 });
+  const lineOver = useSharedValue(-1);
+  const targets = useSharedValue<LineTarget[]>([]);
 
   useEffect(() => {
     stage.measure();
-    return () => clearTimeout(toastTimer.current);
-  }, [stage]);
+    Animated.timing(grow, {
+      toValue: 1,
+      duration: MOTION.trayHide,
+      useNativeDriver: false,
+    }).start();
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(toastTimer.current);
+    };
+  }, [stage, grow]);
+
+  useEffect(() => {
+    targets.set(Object.entries(pos).map(([id, p]) => ({ id: Number(id), x: p.x, y: p.y })));
+  }, [pos, targets]);
 
   const showToast = (t: NonNullable<Toast>) => {
     setToast(t);
     clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 1500);
+    toastTimer.current = setTimeout(() => setToast(null), MOTION.toast);
   };
 
-  const nodeAt = (pt: Point, except: number) => {
-    let best: number | null = null;
-    let bestD = HIT_R;
-    for (const n of nodes) {
-      const p = pos[n.id];
-      if (n.id === except || !p) continue;
-      const d = dist(p, pt);
-      if (d < bestD) {
-        best = n.id;
-        bestD = d;
-      }
-    }
-    return best;
+  // 틀린 관계: 붉게 + 흔들림 + 배너 · 선 사라짐 0.3s
+  const playWrongPair = (pair: Pair) => {
+    setWrongPair(pair);
+    tint.setValue(0);
+    wrongLine.setValue(1);
+    shake.run();
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(tint, { toValue: 1, duration: MOTION.tint / 2, useNativeDriver: true }),
+        Animated.timing(tint, { toValue: 0, duration: MOTION.tint / 2, useNativeDriver: true }),
+      ]),
+      Animated.timing(wrongLine, { toValue: 0, duration: MOTION.shake, useNativeDriver: true }),
+    ]).start(() => setWrongPair(null));
+    showToast({ sub: '다시 생각해 볼까요?' });
   };
 
   const connect = async (a: number, b: number) => {
@@ -96,12 +148,13 @@ export default function LinkStep({
     }
     try {
       const quiz = await requestQuiz.mutateAsync({ from: a, to: b });
+      activeQuiz.current = quiz.quizId;
       setPending({ from: a, to: b, quizId: quiz.quizId, choices: quiz.choices, phase: 'quiz' });
     } catch (e) {
       if (isSessionExpired(e)) {
         onSessionExpired();
       } else if (e instanceof ApiError && e.code === 'GAME_400_1') {
-        showToast({ title: '아쉬워요!', sub: '이 두 별은 이어지지 않아요. 다른 별과 이어볼까요?' });
+        playWrongPair({ from: a, to: b });
       } else if (e instanceof ApiError && e.code === 'GAME_409_2') {
         showToast({ title: '이미 이었어요!', sub: '다른 별을 이어볼까요?' });
       } else {
@@ -110,7 +163,10 @@ export default function LinkStep({
     }
   };
 
-  const tap = (id: number) => {
+  const blocked = pending != null || requestQuiz.isPending;
+
+  const handleTap = (id: number) => {
+    if (blocked) return;
     if (selected == null) return setSelected(id);
     if (selected === id) return setSelected(null);
     const a = selected;
@@ -118,105 +174,158 @@ export default function LinkStep({
     connect(a, id);
   };
 
-  const setDragNow = (d: LineDragState | null) => {
-    dragRef.current = d;
-    setDrag(d);
-  };
   const lineDrag: LineDrag = {
-    blocked: pending != null || requestQuiz.isPending,
-    tap,
-    start: (id, px, py) => {
-      stage.measure();
-      const at = stage.toDesign(px, py);
-      setDragNow({ from: id, origin: at, at, over: null });
-    },
-    move: (px, py) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const at = stage.toDesign(px, py);
-      setDragNow({ ...d, at, over: nodeAt(at, d.from) });
-    },
-    end: (px, py) => {
-      const d = dragRef.current;
-      setDragNow(null);
-      if (!d) return;
-      const at = stage.toDesign(px, py);
-      // 거의 안 움직이고 떼면 "톡"으로 봐요 (톡 · 톡으로도 이을 수 있어요).
-      if (dist(at, d.origin) < 10) return tap(d.from);
-      const target = nodeAt(at, d.from);
+    frame: stage.frame,
+    from: lineFrom,
+    end: lineEnd,
+    over: lineOver,
+    targets,
+    onOver: setOver,
+    onRelease: (from, to) => {
       setSelected(null);
-      if (target != null) connect(d.from, target);
+      if (to >= 0 && !blocked) connect(from, to);
     },
-    cancel: () => setDragNow(null),
+    onTap: handleTap,
   };
 
-  const handleChoose = async (choiceId: number): Promise<ChooseResult> => {
-    if (!pending) return 'error';
+  const handleChoose = async (quiz: Pending, choiceId: number): Promise<ChooseResult> => {
+    const { quizId, from, to } = quiz;
     try {
-      const res = await answerQuiz.mutateAsync({ quizId: pending.quizId, choiceId });
-      if (!res.correct) return 'wrong';
-      setPending({
-        ...pending,
-        explain: {
-          description: res.description ?? '',
-          stageComplete: res.stageComplete,
-          edges: res.graph?.edges,
-        },
-      });
+      const res = await answerQuiz.mutateAsync({ quizId, choiceId });
+      // 응답을 기다리는 사이 퀴즈가 닫혔거나 바뀌었으면 반영하지 않아요
+      if (activeQuiz.current !== quizId) return 'error';
+      if (!res.correct) {
+        showToast({ sub: '다른 답을 골라볼까요?', raised: true });
+        return 'wrong';
+      }
+      const explain = {
+        description: res.description ?? '',
+        stageComplete: res.stageComplete,
+        edges: res.graph?.edges,
+      };
+      setPending((p) => (p?.quizId === quizId ? { ...p, explain } : p));
+      // 올바른 관계: 선 확정(0.25s 그리기) + 햅틱 1회 → 관계 해설
+      setMade((m) => [...m, { from, to, fresh: true }]);
+      haptic('confirm');
       return 'correct';
     } catch (e) {
       if (isSessionExpired(e)) onSessionExpired();
+      else showToast({ title: '앗!', sub: '잠시 후 다시 골라볼까요?', raised: true });
       return 'error';
     }
   };
 
-  const handleNext = () => {
-    if (!pending?.explain) return;
-    const next = [...made, { from: pending.from, to: pending.to }];
-    const { stageComplete, edges } = pending.explain;
-    setMade(next);
-    setPending(null);
-    if (stageComplete) setTimeout(() => onComplete(edges ?? next), 650);
+  const handleExplain = () => {
+    setPending((p) => (p ? { ...p, phase: 'explain' } : p));
+    haptic('tap');
   };
 
-  const seg = (p: Pair): [Point, Point] => [pos[p.from], pos[p.to]];
+  const handleNext = () => {
+    if (!pending?.explain) return;
+    const { stageComplete, edges } = pending.explain;
+    activeQuiz.current = null;
+    setPending(null);
+    if (stageComplete) {
+      const result = { edges: edges ?? made.map(({ from, to }) => ({ from, to })), placement };
+      setTimeout(() => onComplete(result), 650);
+    }
+  };
+
+  const handleMoved = (id: number, at: Point) =>
+    setPlacement((p) => {
+      const spot = p[id];
+      return spot ? { ...p, [id]: pointToSpot(at, spot.basket, LINK_AREA) } : p;
+    });
+
   const from = pending ? byId.get(pending.from) : undefined;
   const to = pending ? byId.get(pending.to) : undefined;
+  const quizLine =
+    pending && !pending.explain && pos[pending.from] && pos[pending.to]
+      ? ([pos[pending.from], pos[pending.to]] as [Point, Point])
+      : null;
 
   return (
-    <>
+    <Animated.View style={[StyleSheet.absoluteFill, shake.style]} pointerEvents="box-none">
       <StepHeader
         step={2}
         title="이야기 별자리를 완성해요!"
         sub="관계가 있는 카드끼리 선으로 이어요"
       />
-      <Baskets categories={categories} area={LINK_AREA} />
-      <LinkLines
-        segments={made.map(seg)}
-        pending={pending ? seg(pending) : null}
-        drag={drag ? [pos[drag.from], drag.over != null ? pos[drag.over] : drag.at] : null}
+      <Baskets
+        categories={categories}
+        area={LINK_AREA}
+        grow={{ from: CLASSIFY_AREA, progress: grow }}
       />
-      {nodes.map((n) =>
-        pos[n.id] ? (
-          <DraggableNode
+      {/* 2단계 진입: 빈 트레이가 아래로 사라져요 (0.35s) */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          TRAY_FRAME,
+          {
+            opacity: grow.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            transform: [
+              {
+                translateY: grow.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, H - TRAY.top],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+      <LinkLines
+        segments={made
+          .filter((m) => pos[m.from] && pos[m.to])
+          .map((m) => ({
+            key: pairKey(m.from, m.to),
+            a: pos[m.from],
+            b: pos[m.to],
+            fresh: m.fresh,
+          }))}
+        pending={quizLine}
+        wrong={
+          wrongPair && pos[wrongPair.from] && pos[wrongPair.to]
+            ? { seg: [pos[wrongPair.from], pos[wrongPair.to]], opacity: wrongLine }
+            : null
+        }
+      />
+      <DragLine drag={lineDrag} />
+      {nodes.map((n) => {
+        const p = pos[n.id];
+        const spot = placement[n.id];
+        if (!p) return null;
+        const isWrong = wrongPair?.from === n.id || wrongPair?.to === n.id;
+        return (
+          <GestureStar
             key={n.id}
             node={n}
-            at={pos[n.id]}
-            selected={selected === n.id || drag?.from === n.id || drag?.over === n.id}
-            drag={lineDrag}
+            basket={spot?.basket ?? categories.indexOf(n.category)}
+            area={LINK_AREA}
+            cx={p.x}
+            cy={p.y}
+            selected={selected === n.id || over === n.id}
+            tint={isWrong ? tint : undefined}
+            blocked={blocked}
+            line={lineDrag}
+            accessibilityLabel={`${n.word} 별. 두 별을 차례로 눌러 이어요`}
+            onMoved={handleMoved}
           />
-        ) : null,
-      )}
-      <WrongToast visible={toast != null} title={toast?.title} sub={toast?.sub} />
+        );
+      })}
 
       {pending?.phase === 'quiz' && from && to ? (
         <QuizModal
+          key={pending.quizId}
           from={from}
           to={to}
           choices={pending.choices}
-          onChoose={handleChoose}
-          onCorrect={() => setPending((p) => (p ? { ...p, phase: 'explain' } : p))}
-          onClose={() => setPending(null)}
+          onChoose={(choiceId) => handleChoose(pending, choiceId)}
+          onCorrect={handleExplain}
+          onClose={() => {
+            activeQuiz.current = null;
+            setPending(null);
+          }}
         />
       ) : null}
       {pending?.phase === 'explain' && pending.explain && from && to ? (
@@ -227,6 +336,12 @@ export default function LinkStep({
           onNext={handleNext}
         />
       ) : null}
-    </>
+      <WrongToast
+        visible={toast != null}
+        title={toast?.title}
+        sub={toast?.sub}
+        raised={toast?.raised}
+      />
+    </Animated.View>
   );
 }

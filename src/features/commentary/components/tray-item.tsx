@@ -1,24 +1,30 @@
-import { useState } from 'react';
-import {
-  Animated,
-  type GestureResponderEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import type { SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import type { GameNode } from '@/features/commentary/api/types';
+import Text from '@/features/commentary/components/app-text';
 import JellyStar from '@/features/commentary/components/jelly-star';
-import { TRAY_STAR } from '@/features/commentary/constants/layout';
+import { type Area, TRAY_STAR } from '@/features/commentary/constants/layout';
 import { FONT, INK, STAR } from '@/features/commentary/constants/theme';
 import { usePulse } from '@/features/commentary/hooks/use-motion';
+import { type StageFrame, toDesign } from '@/features/commentary/hooks/use-stage';
+import { basketAt, CATEGORY_COLOR } from '@/features/commentary/utils/game-logic';
 
+// 손가락 위치는 UI 스레드에서 x · y 에 바로 써서 별이 늦지 않게 따라와요.
+// 화면이 알아야 하는 순간(시작 · 바구니 바뀜 · 놓음)만 JS 로 알려요.
 export type TrayDrag = {
-  start: (id: number, pageX: number, pageY: number) => void;
-  move: (pageX: number, pageY: number) => void;
-  end: (pageX: number, pageY: number) => void;
-  cancel: () => void;
+  frame: SharedValue<StageFrame>;
+  x: SharedValue<number>;
+  y: SharedValue<number>;
+  hot: SharedValue<number>;
+  area: Area;
+  basketCount: number;
+  onStart: (id: number, x: number, y: number) => void;
+  onHot: (basket: number) => void;
+  onDrop: (id: number, x: number, y: number) => void;
+  onCancel: () => void;
 };
 
 type Props = {
@@ -30,63 +36,80 @@ type Props = {
   onSelect: (id: number | null) => void;
 };
 
-const page = (e: GestureResponderEvent) => [e.nativeEvent.pageX, e.nativeEvent.pageY] as const;
-
-// 트레이 별 하나. 위로 끌어올리면 드래그, 톡 누르면 선택(끌기 어려운 아이 · 보이스오버용).
-// 분류 전이라 색으로 정답을 알려주지 않게 회색 별로 보여줘요.
+// 트레이 별 하나. 위로 끌어올리면 드래그, 톡 누르면 선택(끌기 어려운 아이 · 스크린 리더용).
+// 시안처럼 분류될 영역 색으로 그려요 (같은 색 = 힌트).
 export default function TrayItem({ node, selected, hidden, disabled, drag, onSelect }: Props) {
   const pulse = usePulse(selected);
-  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const { frame, x, y, hot, area, basketCount, onStart, onHot, onDrop, onCancel } = drag;
+  const id = node.id;
+
+  // 위아래로 움직였을 때만 가져가고, 옆으로 미는 건 트레이 스크롤에 양보해요.
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .activeOffsetY([-8, 8])
+    .failOffsetX([-12, 12])
+    .onStart((e) => {
+      const p = toDesign(frame.value, e.absoluteX, e.absoluteY);
+      x.set(p.x);
+      y.set(p.y);
+      hot.set(-1);
+      scheduleOnRN(onStart, id, p.x, p.y);
+    })
+    .onUpdate((e) => {
+      const p = toDesign(frame.value, e.absoluteX, e.absoluteY);
+      x.set(p.x);
+      y.set(p.y);
+      const i = basketAt(p, basketCount, area);
+      if (i !== hot.value) {
+        hot.set(i);
+        scheduleOnRN(onHot, i);
+      }
+    })
+    .onEnd(() => {
+      scheduleOnRN(onDrop, id, x.value, y.value);
+    })
+    .onFinalize((_, success) => {
+      if (!success) scheduleOnRN(onCancel);
+    });
+
   return (
-    <View
-      style={[styles.item, hidden && styles.hidden]}
-      onTouchStart={(e) => setOrigin({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
-      // 위아래로 움직였을 때만 가져가서, 옆으로 미는 건 스크롤에 양보해요.
-      onMoveShouldSetResponderCapture={(e) => {
-        const dx = e.nativeEvent.pageX - origin.x;
-        const dy = e.nativeEvent.pageY - origin.y;
-        return !disabled && Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx) * 1.1;
-      }}
-      onResponderGrant={(e) => drag.start(node.id, ...page(e))}
-      onResponderMove={(e) => drag.move(...page(e))}
-      onResponderRelease={(e) => drag.end(...page(e))}
-      onResponderTerminate={() => drag.cancel()}
-      onResponderTerminationRequest={() => false}
-    >
-      <Pressable
-        disabled={disabled}
-        onPress={() => onSelect(selected ? null : node.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`${node.word} 별`}
-        accessibilityHint="고른 뒤 알맞은 바구니를 눌러 넣어요"
-        accessibilityState={{ selected, disabled }}
-        style={({ pressed }) => [
-          styles.press,
-          pressed && styles.pressed,
-          selected && styles.lifted,
-        ]}
-      >
-        <View style={styles.star}>
-          {selected ? (
-            <>
-              <View style={styles.ring} />
-              <Animated.View style={[styles.ring, pulse]} />
-            </>
-          ) : null}
-          <JellyStar color="grey" size={TRAY_STAR} />
-        </View>
-        <Text style={styles.name} numberOfLines={2}>
-          {node.word}
-        </Text>
-      </Pressable>
-    </View>
+    <GestureDetector gesture={pan}>
+      <View style={[styles.item, hidden && styles.hidden]}>
+        <Pressable
+          disabled={disabled}
+          onPress={() => onSelect(selected ? null : id)}
+          accessibilityRole="button"
+          accessibilityLabel={`${node.word} 별`}
+          accessibilityHint="고른 뒤 알맞은 바구니를 눌러 넣어요"
+          accessibilityState={{ selected, disabled }}
+          style={({ pressed }) => [
+            styles.press,
+            pressed && styles.pressed,
+            selected && styles.lifted,
+          ]}
+        >
+          <View style={styles.star}>
+            {selected ? (
+              <>
+                <View style={styles.ring} />
+                <Animated.View style={[styles.ring, pulse]} />
+              </>
+            ) : null}
+            <JellyStar color={CATEGORY_COLOR[node.category]} size={TRAY_STAR} />
+          </View>
+          <Text style={styles.name} numberOfLines={2}>
+            {node.word}
+          </Text>
+        </Pressable>
+      </View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
   item: { minWidth: 96, maxWidth: 130, alignItems: 'center' },
   hidden: { opacity: 0.15 },
-  press: { alignItems: 'center', gap: 3, paddingVertical: 4 },
+  press: { alignItems: 'center', gap: 4, paddingVertical: 4 },
   pressed: { transform: [{ scale: 0.92 }] },
   lifted: { transform: [{ translateY: -4 }] },
   star: { width: TRAY_STAR, height: TRAY_STAR },
@@ -94,6 +117,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT.sansBold,
     fontSize: 13,
     lineHeight: 16,
+    letterSpacing: -0.26,
     color: INK[1],
     textAlign: 'center',
   },

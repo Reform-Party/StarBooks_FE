@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import {
+  type AccessibilityActionEvent,
   Animated,
-  type GestureResponderHandlers,
+  Easing,
+  Pressable,
   type StyleProp,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
 } from 'react-native';
 
+import Text from '@/features/commentary/components/app-text';
 import JellyStar from '@/features/commentary/components/jelly-star';
 import { NODE_STAR } from '@/features/commentary/constants/layout';
+import { MOTION } from '@/features/commentary/constants/motion';
 import { FONT, INK, STAR, type StarColor } from '@/features/commentary/constants/theme';
 import { usePop, usePulse } from '@/features/commentary/hooks/use-motion';
 
@@ -21,11 +25,17 @@ type Props = {
   size?: number;
   selected?: boolean;
   pop?: boolean;
-  panHandlers?: GestureResponderHandlers;
+  // 0 → 1 → 0 으로 움직이면 별이 잠깐 붉어져요 (오답)
+  tint?: Animated.Value;
+  // 3단계: 누르면 1초 회전 (0.5초 가속 → 0.5초 감속)
+  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
-  onAccessibilityTap?: () => void;
+  // 스크린 리더의 "활성화"(iOS 두 번 탭 · TalkBack 두 번 탭) — 양쪽 플랫폼에서 동작해요
+  onActivate?: () => void;
 };
+
+const ACTIONS = [{ name: 'activate' }];
 
 // 이야기 별 = 젤리 별 + 아래 이름. (cx, cy) 는 별의 한가운데. 긴 이름은 두 줄로 넘어가요.
 export default function StarNode({
@@ -36,13 +46,15 @@ export default function StarNode({
   size = NODE_STAR,
   selected = false,
   pop = false,
-  panHandlers,
+  tint,
+  onPress,
   style,
   accessibilityLabel,
-  onAccessibilityTap,
+  onActivate,
 }: Props) {
   const popStyle = usePop();
   const pulse = usePulse(selected);
+  const spin = useState(() => new Animated.Value(0))[0];
   const ringColor = color === 'grey' ? STAR.mint.c300 : STAR[color].c300;
   const ring = {
     borderColor: ringColor,
@@ -50,25 +62,74 @@ export default function StarNode({
     height: size + 16,
     borderRadius: (size + 16) / 2,
   };
+
+  const handlePress = () => {
+    spin.setValue(0);
+    Animated.timing(spin, {
+      toValue: 1,
+      duration: MOTION.spin,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+    onPress?.();
+  };
+  const handleAction = (e: AccessibilityActionEvent) => {
+    if (e.nativeEvent.actionName !== 'activate') return;
+    if (onActivate) onActivate();
+    else if (onPress) handlePress();
+  };
+
+  const star = (
+    <View style={{ width: size, height: size }}>
+      {selected ? (
+        <>
+          <View style={[styles.ring, ring]} />
+          <Animated.View style={[styles.ring, ring, pulse]} />
+        </>
+      ) : null}
+      <Animated.View
+        style={
+          onPress
+            ? {
+                transform: [
+                  {
+                    rotate: spin.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '360deg'],
+                    }),
+                  },
+                ],
+              }
+            : undefined
+        }
+      >
+        <JellyStar color={color} size={size} />
+        {tint ? (
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: tint }]}>
+            <JellyStar size={size} tinted />
+          </Animated.View>
+        ) : null}
+      </Animated.View>
+    </View>
+  );
+
   return (
     <Animated.View
-      {...panHandlers}
       accessible
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? name}
       accessibilityState={{ selected }}
-      onAccessibilityTap={onAccessibilityTap}
+      accessibilityActions={onActivate || onPress ? ACTIONS : undefined}
+      onAccessibilityAction={handleAction}
       style={[styles.node, { left: cx - 50, top: cy - size / 2 }, pop && popStyle, style]}
     >
-      <View style={{ width: size, height: size }}>
-        {selected ? (
-          <>
-            <View style={[styles.ring, ring]} />
-            <Animated.View style={[styles.ring, ring, pulse]} />
-          </>
-        ) : null}
-        <JellyStar color={color} size={size} />
-      </View>
+      {onPress ? (
+        <Pressable onPress={handlePress} hitSlop={8} accessible={false}>
+          {star}
+        </Pressable>
+      ) : (
+        star
+      )}
       <Text style={styles.name} numberOfLines={2}>
         {name}
       </Text>
@@ -83,6 +144,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT.sansBold,
     fontSize: 13,
     lineHeight: 16,
+    letterSpacing: -0.26,
     color: INK[1],
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.8)',

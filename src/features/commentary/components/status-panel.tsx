@@ -1,7 +1,9 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import Text from '@/features/commentary/components/app-text';
 import CenterModal from '@/features/commentary/components/center-modal';
 import JellyButton from '@/features/commentary/components/jelly-button';
+import { SPACE } from '@/features/commentary/constants/theme';
 import { TYPE } from '@/features/commentary/constants/typography';
 
 type Props = { title: string; sub: string; onRetry: () => void };
@@ -20,6 +22,6 @@ export default function StatusPanel({ title, sub, onRetry }: Props) {
 }
 
 const styles = StyleSheet.create({
-  panel: { padding: 24, alignItems: 'center', gap: 10 },
+  panel: { padding: SPACE.xl, alignItems: 'center', gap: SPACE.m },
   sub: { textAlign: 'center' },
 });

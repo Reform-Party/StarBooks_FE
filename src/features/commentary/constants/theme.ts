@@ -17,9 +17,14 @@ export const GLASS = {
   fill: 'rgba(255,255,255,0.08)',
   fill2: 'rgba(255,255,255,0.14)',
   line: 'rgba(255,255,255,0.22)',
-  panel: 'rgba(22,26,60,0.92)', // RN 에는 backdrop blur 가 없어 .84 → .92 로 살짝 올림
+  panel: 'rgba(22,26,60,0.84)', // + blur 16 (iOS 는 expo-blur)
+  // 안드로이드는 화면 구조상 blur 를 못 줘서 글자가 잘 보이게 조금 더 진하게
+  panelSolid: 'rgba(22,26,60,0.92)',
   scrim: 'rgba(5,6,18,0.62)',
 } as const;
+
+// 연결선 · 은하수 (디자인 문서 03 Milky way)
+export const MILKY_WAY = ['#38BDF8', '#818CF8', '#C084FC', '#F472B6', '#FDE047'] as const;
 
 export const PAPER = { fill: '#FBF7EE', edge: '#E9E1CF', ink: '#241F52', ink2: '#6B6790' } as const;
 
@@ -96,3 +101,12 @@ export const STAR: Record<StarColor, StarTone> = {
 };
 
 export const RADIUS = { s: 10, m: 14, basket: 18, l: 22, pill: 999 } as const;
+
+// 간격 스케일 (디자인 문서 06): 4 · 6 · 8 · 12 · 16 · 24 · 32
+export const SPACE = { xxs: 4, xs: 6, s: 8, m: 12, l: 16, xl: 24, xxl: 32 } as const;
+
+// '#RRGGBB' → 'rgba(r,g,b,a)'
+export const withAlpha = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+};

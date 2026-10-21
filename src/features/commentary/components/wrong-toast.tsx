@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import Text from '@/features/commentary/components/app-text';
 import { TOAST_RECT } from '@/features/commentary/constants/layout';
 import { FONT, INK, STAR } from '@/features/commentary/constants/theme';
 import { TYPE } from '@/features/commentary/constants/typography';
 
-type Props = { visible: boolean; title?: string; sub?: string };
+// raised: 퀴즈 모달 위에 띄울 때
+type Props = { visible: boolean; title?: string; sub?: string; raised?: boolean };
 
 // 오답 안내: 분홍 "아쉬워요!" (디자인 c1-wrong)
 export default function WrongToast({
   visible,
   title = '아쉬워요!',
   sub = '다른 곳에 놓아볼까요?',
+  raised = false,
 }: Props) {
   const v = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
@@ -29,6 +32,7 @@ export default function WrongToast({
       accessibilityLiveRegion="polite"
       style={[
         styles.box,
+        raised && styles.raised,
         {
           opacity: v,
           transform: [
@@ -69,11 +73,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     zIndex: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 25,
-    shadowOffset: { width: 0, height: 18 },
+    boxShadow: '0px 18px 50px rgba(0,0,0,0.5)',
   },
+  raised: { zIndex: 40 },
   bg: {
     position: 'absolute',
     left: 0,

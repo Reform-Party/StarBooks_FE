@@ -76,7 +76,8 @@ const styles = StyleSheet.create({
     zIndex: 20,
     boxShadow: '0px 18px 50px rgba(0,0,0,0.5)',
   },
-  raised: { zIndex: 40 },
+  // 공용 CenterModal(zIndex 100) 위에 떠야 해요
+  raised: { zIndex: 110 },
   bg: {
     position: 'absolute',
     left: 0,

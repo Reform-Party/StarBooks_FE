@@ -21,6 +21,8 @@ type Props = {
   top?: number;
   // 스크림 색. 없으면 PANEL.scrim (예: 뒤 화면이 비쳐 보여야 하는 완성 화면)
   scrimColor?: string;
+  // true 면 스크림이 터치를 막지 않아요 (예: 완성 패널이 떠 있어도 뒤의 관계선을 누르는 화면)
+  passThrough?: boolean;
   children: ReactNode;
 };
 
@@ -33,6 +35,7 @@ export default function CenterModal({
   panelStyle,
   top,
   scrimColor,
+  passThrough = false,
   children,
 }: Props) {
   useEffect(() => {
@@ -55,11 +58,13 @@ export default function CenterModal({
         top != null && { justifyContent: 'flex-start', paddingTop: top },
         scrimColor != null && { backgroundColor: scrimColor },
       ]}
-      accessibilityViewIsModal
+      accessibilityViewIsModal={!passThrough}
       onAccessibilityEscape={onRequestClose}
+      pointerEvents={passThrough ? 'box-none' : 'auto'}
     >
       <Pressable
         accessible={false}
+        pointerEvents={passThrough ? 'none' : 'auto'}
         disabled={!onRequestClose}
         onPress={onRequestClose}
         style={StyleSheet.absoluteFill}

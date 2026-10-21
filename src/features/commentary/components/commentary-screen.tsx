@@ -8,13 +8,14 @@ import { SCREEN } from '@/constants/layout';
 import type { Category, GameNode } from '@/features/commentary/api/types';
 import CanvasFrame from '@/features/commentary/components/canvas-frame';
 import ClassifyStep, { type ClassifyResult } from '@/features/commentary/components/classify-step';
+import CompleteStep from '@/features/commentary/components/complete-step';
 import FadeIn from '@/features/commentary/components/fade-in';
 import GraphSkeleton from '@/features/commentary/components/graph-skeleton';
-import LinkStep from '@/features/commentary/components/link-step';
+import LinkStep, { type LinkResult } from '@/features/commentary/components/link-step';
 import StatusPanel from '@/features/commentary/components/status-panel';
-import { CLASSIFY_AREA } from '@/features/commentary/constants/board';
+import { CLASSIFY_AREA, LINK_AREA } from '@/features/commentary/constants/board';
 import { MOTION } from '@/features/commentary/constants/motion';
-import { useStartGame } from '@/features/commentary/hooks/use-game-api';
+import { useGameGraph, useStartGame } from '@/features/commentary/hooks/use-game-api';
 import { ApiError } from '@/lib/api-client';
 
 const CATEGORIES: Category[] = ['등장인물', '장소', '사건', '교훈'];
@@ -29,8 +30,9 @@ type Props = { fairytaleId: number; onHome: () => void };
  */
 export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
   const { mutate: start, data: game, error, isPending: starting } = useStartGame();
-  const [step, setStep] = useState<'classify' | 'link'>('classify');
+  const [step, setStep] = useState<'classify' | 'link' | 'complete'>('classify');
   const [classified, setClassified] = useState<ClassifyResult>({ placement: {} });
+  const [linked, setLinked] = useState<LinkResult>({ edges: [], placement: {} });
   // 게임 도중 서버 세션이 사라졌어요(GAME_404_1) → 처음부터 다시 시작해야 해요
   const [expired, setExpired] = useState(false);
   const leave = useState(() => new Animated.Value(1))[0];
@@ -39,10 +41,15 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
     start(fairytaleId);
   }, [start, fairytaleId]);
 
+  // 이미 끝낸 게임(409)이면 완성된 관계도를 보여줘요.
+  const finished = error instanceof ApiError && error.code === 'GAME_409_1';
+  const graph = useGameGraph(fairytaleId, finished);
+
   const restart = () => {
     setExpired(false);
     setStep('classify');
     setClassified({ placement: {} });
+    setLinked({ edges: [], placement: {} });
     start(fairytaleId);
   };
 
@@ -57,6 +64,27 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
   };
 
   const renderContent = () => {
+    if (finished) {
+      if (graph.isError) {
+        return (
+          <StatusPanel
+            title="관계도를 불러오지 못했어요"
+            sub="잠시 후 다시 시도해 주세요."
+            onRetry={() => graph.refetch()}
+          />
+        );
+      }
+      if (!graph.data) return <GraphSkeleton categories={CATEGORIES} area={LINK_AREA} />;
+      return (
+        <CompleteStep
+          nodes={graph.data.nodes}
+          categories={CATEGORIES}
+          placement={{}}
+          edges={graph.data.edges}
+          onHome={handleHome}
+        />
+      );
+    }
     if (error) {
       const notReady = error instanceof ApiError && error.code === 'GAME_404_3';
       return (
@@ -96,16 +124,29 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
     }
     // 2단계부터는 1단계 완료 응답이 준 노드를 써요 (없으면 /start 의 노드)
     const linkNodes: GameNode[] = classified.nextNodes ?? question.nodes;
+    if (step === 'link') {
+      return (
+        <LinkStep
+          key={sessionId}
+          sessionId={sessionId}
+          nodes={linkNodes}
+          categories={categories}
+          placement={classified.placement}
+          onComplete={(result) => {
+            setLinked(result);
+            setStep('complete');
+          }}
+          onSessionExpired={() => setExpired(true)}
+        />
+      );
+    }
     return (
-      <LinkStep
-        key={sessionId}
-        sessionId={sessionId}
+      <CompleteStep
         nodes={linkNodes}
         categories={categories}
-        placement={classified.placement}
-        // 3단계(별자리 완성)는 다음 PR 에서 이어요. 지금은 모두 이으면 메인으로 돌아가요.
-        onComplete={handleHome}
-        onSessionExpired={() => setExpired(true)}
+        placement={linked.placement}
+        edges={linked.edges}
+        onHome={handleHome}
       />
     );
   };

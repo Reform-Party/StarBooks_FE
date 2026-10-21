@@ -24,6 +24,7 @@ export const requestQuiz = (sessionId: string, fromNodeId: number, toNodeId: num
   post<QuizData>('/api/game/quiz', { sessionId, fromNodeId, toNodeId });
 
 // 명세의 완료 응답 예시만 snake_case(stage_complete, edge_id)라서 두 표기를 모두 받아 맞춰요.
+// BE 응답 표기가 camelCase 로 통일되면 이 변환은 지워요.
 type RawEdge = Partial<GraphEdge> & { edge_id?: number; from: number; to: number };
 type RawAnswer = Omit<QuizAnswerData, 'stageComplete' | 'graph'> & {
   stageComplete?: boolean;
@@ -51,7 +52,7 @@ export async function answerQuiz(
     graph: raw.graph && {
       nodes: raw.graph.nodes,
       edges: raw.graph.edges.map((e) => ({
-        edgeId: e.edgeId ?? e.edge_id ?? 0,
+        edgeId: e.edgeId ?? e.edge_id,
         from: e.from,
         to: e.to,
       })),

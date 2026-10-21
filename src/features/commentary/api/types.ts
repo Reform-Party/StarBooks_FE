@@ -25,7 +25,8 @@ export type Background =
 
 export type GameNode = { id: number; word: string; category: Category };
 
-export type GraphEdge = { edgeId: number; from: number; to: number };
+// edgeId 가 없으면(응답 누락) 3단계에서 그 선은 눌러도 설명을 부르지 않아요
+export type GraphEdge = { edgeId?: number; from: number; to: number };
 
 export type GameGraph = { nodes: GameNode[]; edges: GraphEdge[] };
 

@@ -125,17 +125,24 @@ export function nodePositions(
 }
 
 // "용왕님은 {{토끼의 간}}을" → 강조 구간을 나눠요 (서버 설명에 {{ }} 가 있을 때만)
+// 줄바꿈이 섞여도 강조하고, 짝이 안 맞아 남은 {{ · }} 는 화면에 보이지 않게 지워요.
+const stripBraces = (s: string) => s.replace(/\{\{|\}\}/g, '');
+
 export function parseMarked(text: string) {
   const out: { text: string; mark?: boolean }[] = [];
-  const re = /\{\{(.+?)\}\}/g;
+  const push = (t: string, mark?: boolean) => {
+    const clean = stripBraces(t);
+    if (clean) out.push(mark ? { text: clean, mark } : { text: clean });
+  };
+  const re = /\{\{([\s\S]+?)\}\}/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
-    if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ text: m[1], mark: true });
+    if (m.index > last) push(text.slice(last, m.index));
+    push(m[1], true);
     last = re.lastIndex;
   }
-  if (last < text.length) out.push({ text: text.slice(last) });
+  if (last < text.length) push(text.slice(last));
   return out;
 }
 

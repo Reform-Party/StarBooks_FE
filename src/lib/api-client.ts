@@ -51,30 +51,74 @@ export async function toApiError(res: Response, fallback: string) {
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  // 화면을 떠나거나 쿼리 키가 바뀌면 TanStack Query 가 넘겨주는 signal 로 요청을 취소해요.
   signal?: AbortSignal;
+  // 응답이 이 시간 안에 오지 않으면 TIMEOUT 으로 끊어요. 0 이면 끊지 않아요 (SSE 처럼 오래 여는 요청).
+  timeoutMs?: number;
+  // 본문이 없는 게 정상인 API(204 등)만 true 로 둬요. 기본은 data 가 비면 EMPTY 로 알려요.
+  allowEmpty?: boolean;
 };
+
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 export async function request<T>(
   path: string,
-  { method = 'GET', body, signal }: RequestOptions = {},
+  {
+    method = 'GET',
+    body,
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    allowEmpty = false,
+  }: RequestOptions = {},
 ): Promise<T> {
-  let res: Response;
+  // 바깥 취소(signal)와 타임아웃을 하나의 AbortController 로 모으되, 어느 쪽인지는 구분해요.
+  // 화면을 떠나 취소된 요청이 "응답이 너무 늦어요" 로 보이면 안 되니까요.
+  const abort = new AbortController();
+  let timedOut = false;
+  const timer =
+    timeoutMs > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          abort.abort();
+        }, timeoutMs)
+      : undefined;
+  const forward = () => abort.abort();
+  if (signal?.aborted) abort.abort();
+  signal?.addEventListener('abort', forward);
+
   try {
-    res = await fetch(`${API_URL}${path}`, {
-      method,
-      signal,
-      headers: await authHeaders(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}${path}`, {
+        method,
+        signal: abort.signal,
+        headers: await authHeaders(
+          body === undefined ? {} : { 'Content-Type': 'application/json' },
+        ),
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      if (isAbortError(e)) throw e;
+      throw new ApiError(0, 'NETWORK', '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요');
+    }
+
+    if (!res.ok) throw await toApiError(res, '요청을 처리하지 못했어요');
+
+    const json: unknown = await res.json().catch(() => null);
+    // 봉투 없이 오는 응답(목 서버)도 받아요.
+    let value: unknown = json;
+    if (isEnvelope(json)) {
+      if (!json.isSuccess) throw new ApiError(res.status, json.code, json.message);
+      value = json.data;
+    }
+    if (value == null && !allowEmpty) throw new ApiError(res.status, 'EMPTY', '응답이 비어 있어요');
+    return value as T;
   } catch (e) {
-    if (isAbortError(e)) throw e;
-    throw new ApiError(0, 'NETWORK', '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요');
+    if (timedOut)
+      throw new ApiError(0, 'TIMEOUT', '응답이 너무 늦어요. 잠시 후 다시 시도해 주세요');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forward);
   }
-
-  if (!res.ok) throw await toApiError(res, '요청을 처리하지 못했어요');
-
-  const data: unknown = await res.json().catch(() => null);
-  if (!isEnvelope(data)) return data as T;
-  if (!data.isSuccess) throw new ApiError(res.status, data.code, data.message);
-  return data.data as T;
 }

@@ -101,7 +101,9 @@ export default function GestureStar({
     .onStart(() => {
       startX.set(px.value);
       startY.set(py.value);
-      lift.set(withTiming(MOTION.liftScale, { duration: MOTION.spring, easing: MOTION.springEase }));
+      lift.set(
+        withTiming(MOTION.liftScale, { duration: MOTION.spring, easing: MOTION.springEase }),
+      );
       scheduleOnRN(haptic, 'longPress');
     })
     .onUpdate((e) => {

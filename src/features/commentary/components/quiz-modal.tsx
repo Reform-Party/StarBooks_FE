@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, FlatList, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import type { GameNode, QuizChoice } from '@/features/commentary/api/types';
@@ -56,14 +56,23 @@ export default function QuizModal({ from, to, choices, onChoose, onCorrect, onCl
     }
   };
 
+  // 응답을 기다리는 동안 닫으면 늦게 온 정답이 모달을 다시 열 수 있어서 막아요
+  const closable = !busy && right == null;
+
   return (
-    <CenterModal visible top={PANEL_TOP} scrimColor={SCRIM} panelStyle={styles.panel}>
-      {/* 응답을 기다리는 동안 닫으면 늦게 온 정답이 모달을 다시 열 수 있어서 막아요 */}
+    <CenterModal
+      visible
+      top={PANEL_TOP}
+      scrimColor={SCRIM}
+      // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 퀴즈만 닫아요
+      onRequestClose={closable ? onClose : undefined}
+      panelStyle={styles.panel}
+    >
       <GlassIconButton
         icon="x"
         size={32}
         label="닫기"
-        disabled={busy || right != null}
+        disabled={!closable}
         onPress={onClose}
         style={styles.close}
       />
@@ -83,15 +92,17 @@ export default function QuizModal({ from, to, choices, onChoose, onCorrect, onCl
         </View>
         <QuizPairStar color={CATEGORY_COLOR[to.category]} name={to.word} />
       </View>
-      <ScrollView
+      <FlatList
+        data={choices}
+        keyExtractor={(c) => String(c.choiceId)}
+        extraData={[wrongs, right]}
         style={styles.choices}
         contentContainerStyle={styles.choicesContent}
         showsVerticalScrollIndicator={false}
-      >
-        {choices.map((c) => {
+        renderItem={({ item: c }) => {
           const isWrong = wrongs.includes(c.choiceId);
           return (
-            <Animated.View key={c.choiceId} style={[styles.choice, shakeX(shakeOf(c.choiceId))]}>
+            <Animated.View style={[styles.choice, shakeX(shakeOf(c.choiceId))]}>
               <ChoiceButton
                 label={c.content}
                 state={right === c.choiceId ? 'right' : isWrong ? 'wrong' : 'idle'}
@@ -100,8 +111,8 @@ export default function QuizModal({ from, to, choices, onChoose, onCorrect, onCl
               />
             </Animated.View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
     </CenterModal>
   );
 }

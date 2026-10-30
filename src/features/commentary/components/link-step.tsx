@@ -20,6 +20,7 @@ import WrongToast from '@/features/commentary/components/wrong-toast';
 import { SCREEN } from '@/constants/layout';
 import { CLASSIFY_AREA, LINK_AREA, type Point, TRAY } from '@/features/commentary/constants/board';
 import { MOTION } from '@/features/commentary/constants/motion';
+import { type Banner, useBanner } from '@/features/commentary/hooks/use-banner';
 import { useAnswerQuiz, useRequestQuiz } from '@/features/commentary/hooks/use-game-api';
 import { useScreenShake } from '@/features/commentary/hooks/use-motion';
 import { useCanvas } from '@/features/commentary/hooks/use-canvas';
@@ -53,7 +54,6 @@ type Pending = Pair & {
   phase: 'quiz' | 'explain';
 };
 type Made = Pair & { fresh: boolean };
-type Toast = { title?: string; sub: string; raised?: boolean } | null;
 
 // 2단계 · 관계 잇기: 관계가 있는 별끼리 선을 긋고(/quiz) → 퀴즈(/quiz/answer) → 해설
 export default function LinkStep({
@@ -75,12 +75,18 @@ export default function LinkStep({
   const [selected, setSelected] = useState<number | null>(null);
   const [over, setOver] = useState(-1);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [toast, setToast] = useState<Toast>(null);
+  // 모두 이어 3단계로 넘어가는 중 (그 사이 다시 잇지 못하게)
+  const [finishing, setFinishing] = useState(false);
+  // 퀴즈 위에 뜬 배너인지 (사라지는 동안에도 같은 자리에 있어야 해서 따로 둬요)
+  const [raised, setRaised] = useState(false);
+  const banner = useBanner();
   const [wrongPair, setWrongPair] = useState<Pair | null>(null);
   const grow = useState(() => new Animated.Value(0))[0];
   const tint = useState(() => new Animated.Value(0))[0];
   const wrongLine = useState(() => new Animated.Value(0))[0];
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const finishTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // /quiz 요청이 진행 중이면 다음 잇기를 막아요. 렌더 전에 두 번 불려도 막히게 ref 로 둬요.
+  const connecting = useRef(false);
   // 지금 열려 있는 퀴즈. 응답을 기다리는 사이 닫히거나 바뀌면 늦게 온 응답을 버려요.
   const activeQuiz = useRef<string | null>(null);
 
@@ -106,7 +112,7 @@ export default function LinkStep({
     const raf = requestAnimationFrame(() => setEntered(true));
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(toastTimer.current);
+      clearTimeout(finishTimer.current);
     };
   }, [stage, grow]);
 
@@ -114,10 +120,9 @@ export default function LinkStep({
     targets.set(Object.entries(pos).map(([id, p]) => ({ id: Number(id), x: p.x, y: p.y })));
   }, [pos, targets]);
 
-  const showToast = (t: NonNullable<Toast>) => {
-    setToast(t);
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), MOTION.toast);
+  const showToast = (next: Banner & { raised?: boolean }) => {
+    setRaised(next.raised ?? false);
+    banner.show(next);
   };
 
   // 틀린 관계: 붉게 + 흔들림 + 배너 · 선 사라짐 0.3s
@@ -137,10 +142,12 @@ export default function LinkStep({
   };
 
   const connect = async (a: number, b: number) => {
+    if (connecting.current || finishing) return;
     if (made.some((m) => pairKey(m.from, m.to) === pairKey(a, b))) {
       showToast({ title: '이미 이었어요!', sub: '다른 별을 이어볼까요?' });
       return;
     }
+    connecting.current = true;
     try {
       const quiz = await requestQuiz.mutateAsync({ from: a, to: b });
       activeQuiz.current = quiz.quizId;
@@ -155,10 +162,12 @@ export default function LinkStep({
       } else {
         showToast({ title: '앗!', sub: '잠시 후 다시 이어볼까요?' });
       }
+    } finally {
+      connecting.current = false;
     }
   };
 
-  const blocked = pending != null || requestQuiz.isPending;
+  const blocked = pending != null || requestQuiz.isPending || finishing;
 
   const handleTap = (id: number) => {
     if (blocked) return;
@@ -221,8 +230,10 @@ export default function LinkStep({
     activeQuiz.current = null;
     setPending(null);
     if (stageComplete) {
+      // 마지막 해설을 닫고 0.65s 뒤 3단계로. 그 사이에는 별을 잇지 못하게 막아요.
+      setFinishing(true);
       const result = { edges: edges ?? made.map(({ from, to }) => ({ from, to })), placement };
-      setTimeout(() => onComplete(result), 650);
+      finishTimer.current = setTimeout(() => onComplete(result), 650);
     }
   };
 
@@ -332,10 +343,10 @@ export default function LinkStep({
         />
       ) : null}
       <WrongToast
-        visible={toast != null}
-        title={toast?.title}
-        sub={toast?.sub}
-        raised={toast?.raised}
+        visible={banner.visible}
+        title={banner.banner.title}
+        sub={banner.banner.sub}
+        raised={raised}
       />
     </Animated.View>
   );

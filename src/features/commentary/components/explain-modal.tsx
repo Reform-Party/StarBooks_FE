@@ -18,7 +18,7 @@ type Props = {
   to: GameNode;
   description: string;
   onNext: () => void;
-  // 'close': 3단계에서 선을 눌러 다시 볼 때 — 버튼이 "닫기"가 되고 바깥 · 뒤로 가기로도 닫혀요
+  // 'close': 3단계에서 선을 눌러 다시 볼 때 — 버튼이 "닫기"가 돼요
   action?: 'next' | 'close';
 };
 
@@ -35,7 +35,8 @@ export default function ExplainModal({ from, to, description, onNext, action = '
       visible
       top={PANEL_TOP}
       scrimColor={SCRIM}
-      onRequestClose={action === 'close' ? onNext : undefined}
+      // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 해설만 닫아요 (X 와 같아요)
+      onRequestClose={onNext}
       panelStyle={styles.panel}
     >
       <GlassIconButton icon="x" size={32} label="닫기" onPress={onNext} style={styles.close} />

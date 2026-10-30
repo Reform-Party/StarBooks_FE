@@ -9,5 +9,6 @@ export default function CommentaryRoute() {
   const { fairytaleId } = useLocalSearchParams<{ fairytaleId: string }>();
   const id = toId(fairytaleId);
   if (id == null || id <= 0) return <Redirect href="/" />;
-  return <CommentaryScreen fairytaleId={id} onHome={() => router.replace('/')} />;
+  // 메인에서 들어왔으면 그 메인으로 돌아가요 (replace 는 메인을 하나 더 쌓아요)
+  return <CommentaryScreen fairytaleId={id} onHome={() => router.dismissTo('/')} />;
 }

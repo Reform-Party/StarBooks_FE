@@ -2,11 +2,10 @@ import { Children, type ReactNode } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { STAR, type StarColor } from '@/constants/colors';
+import { STAR, type StarColor, withAlpha } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { RADIUS } from '@/constants/layout';
 import Text from '@/features/commentary/components/app-text';
-import { withAlpha } from '@/features/commentary/constants/palette';
 
 type Props = {
   tone: StarColor;

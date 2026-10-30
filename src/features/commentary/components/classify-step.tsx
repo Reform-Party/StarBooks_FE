@@ -28,6 +28,7 @@ import { MOTION } from '@/features/commentary/constants/motion';
 import { SPACE } from '@/constants/layout';
 import { INK, STAR } from '@/constants/colors';
 import { TYPE } from '@/constants/typography';
+import { useBanner } from '@/features/commentary/hooks/use-banner';
 import { useClassifyNode } from '@/features/commentary/hooks/use-game-api';
 import { useScreenShake } from '@/features/commentary/hooks/use-motion';
 import { useCanvas } from '@/features/commentary/hooks/use-canvas';
@@ -56,7 +57,8 @@ type Props = {
 
 // 틀린 별: 놓은 자리(from)에서 붉게 흔들린 뒤 목록 자리(to)로 돌아가요.
 type Wrong = { id: number; from: Point; to: Point };
-type Toast = { title?: string; sub?: string } | null;
+// 서버 판정을 기다리는 별: 놓은 자리에 흐리게 붙잡아 둬요
+type Judging = { id: number; at: Point };
 
 // 분류 끝 패널 뒤로 바구니가 비쳐 보이게 (디자인 c1-done)
 const SCRIM = 'rgba(5,6,18,0.62)';
@@ -78,7 +80,7 @@ export default function ClassifyStep({
   const [dragId, setDragId] = useState<number | null>(null);
   const [hot, setHot] = useState(-1);
   const [wrong, setWrong] = useState<Wrong | null>(null);
-  const [toast, setToast] = useState<Toast>(null);
+  const [judging, setJudging] = useState<Judging | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [nextNodes, setNextNodes] = useState<GameNode[] | undefined>();
   const [done, setDone] = useState(false);
@@ -87,6 +89,11 @@ export default function ClassifyStep({
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const dragHot = useSharedValue(-1);
+  // 지금 끌고 있는 트레이 별 (-1: 없음). 두 손가락으로 두 별을 동시에 끌지 못하게 해요.
+  const dragOwner = useSharedValue(-1);
+  // 판정 요청이 진행 중이면 다음 놓기(끌기 · 톡 · 톡)를 막아요. 렌더를 기다리지 않게 ref 로 둬요.
+  const busy = useRef(false);
+  const banner = useBanner();
   const origin = useRef<Point>(TRAY_HOME);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -97,10 +104,6 @@ export default function ClassifyStep({
   }, [stage]);
 
   const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms));
-  const showToast = (t: NonNullable<Toast>) => {
-    setToast(t);
-    later(() => setToast(null), MOTION.toast);
-  };
 
   const placed = useMemo(() => new Set(Object.keys(placement).map(Number)), [placement]);
   const tray = useMemo(() => nodes.filter((n) => !placed.has(n.id)), [nodes, placed]);
@@ -127,6 +130,12 @@ export default function ClassifyStep({
   };
 
   const drop = async (id: number, basket: number, at: Point | null) => {
+    if (busy.current) return;
+    busy.current = true;
+    setJudging({
+      id,
+      at: at ?? { x: basketX(basket) + BASKET_W / 2, y: CLASSIFY_AREA.top + 60 },
+    });
     try {
       const res = await classify.mutateAsync({ nodeId: id, category: categories[basket] });
       if (res.correct) {
@@ -147,11 +156,14 @@ export default function ClassifyStep({
         from: at ?? { x: basketX(basket) + BASKET_W / 2, y: CLASSIFY_AREA.top + 60 },
         to: origin.current,
       });
-      showToast({});
+      banner.show({});
     } catch (e) {
       if (isSessionExpired(e)) return onSessionExpired();
       // 연결이 끊겨도 별은 트레이로 돌아가고, 다시 놓아볼 수 있어요.
-      showToast({ title: '앗!', sub: '잠시 후 다시 놓아볼까요?' });
+      banner.show({ title: '앗!', sub: '잠시 후 다시 놓아볼까요?' });
+    } finally {
+      busy.current = false;
+      setJudging(null);
     }
   };
 
@@ -160,6 +172,7 @@ export default function ClassifyStep({
     x: dragX,
     y: dragY,
     hot: dragHot,
+    owner: dragOwner,
     area: CLASSIFY_AREA,
     basketCount: categories.length,
     onStart: (id, x, y) => {
@@ -202,6 +215,7 @@ export default function ClassifyStep({
 
   const dragNode = dragId != null ? byId.get(dragId) : undefined;
   const wrongNode = wrong ? byId.get(wrong.id) : undefined;
+  const judgingNode = judging ? byId.get(judging.id) : undefined;
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shake.style]} pointerEvents="box-none">
@@ -235,7 +249,7 @@ export default function ClassifyStep({
       <NodeTray
         nodes={tray}
         selectedId={selected}
-        draggingId={dragId ?? wrong?.id ?? null}
+        draggingId={dragId ?? judging?.id ?? wrong?.id ?? null}
         disabled={classify.isPending}
         drag={trayDrag}
         onSelect={setSelected}
@@ -269,6 +283,17 @@ export default function ClassifyStep({
           ]}
         />
       ) : null}
+      {judging && judgingNode ? (
+        // 판정을 기다리는 동안 놓은 자리에 흐리게 (트레이가 왜 멈췄는지도 알려줘요)
+        <StarNode
+          color={CATEGORY_COLOR[judgingNode.category]}
+          name={judgingNode.word}
+          cx={judging.at.x}
+          cy={judging.at.y}
+          accessibilityLabel={`${judgingNode.word}, 확인하는 중`}
+          style={styles.judging}
+        />
+      ) : null}
       {dragNode ? (
         <Reanimated.View pointerEvents="none" style={[styles.dragLayer, floating]}>
           <StarNode
@@ -281,7 +306,7 @@ export default function ClassifyStep({
         </Reanimated.View>
       ) : null}
 
-      <WrongToast visible={toast != null} title={toast?.title} sub={toast?.sub} />
+      <WrongToast visible={banner.visible} title={banner.banner.title} sub={banner.banner.sub} />
 
       {done ? (
         <CenterModal visible top={76} scrimColor={SCRIM} panelStyle={styles.donePanel}>
@@ -307,6 +332,7 @@ export default function ClassifyStep({
 
 const styles = StyleSheet.create({
   wrong: { zIndex: 15 },
+  judging: { zIndex: 15, opacity: 0.5 },
   dragLayer: { position: 'absolute', left: 0, top: 0, zIndex: 16 },
   donePanel: { width: 380, padding: SPACE[6], alignItems: 'center', gap: SPACE[4] },
   stars: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACE[1] },

@@ -1,7 +1,8 @@
-import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
+import { useStageScale } from '@/components/ui/stage';
 import { SCREEN } from '@/constants/layout';
 import { type CanvasFrame as Frame, CanvasContext } from '@/features/commentary/hooks/use-canvas';
 
@@ -18,6 +19,13 @@ export default function CanvasFrame({ children }: Props) {
       if (width > 0) frame.set({ x, y, scale: width / SCREEN.width });
     });
   }, [frame]);
+
+  // 공용 Stage 는 캔버스 크기는 그대로 두고 배율만 바꿔서 onLayout 이 다시 불리지 않아요.
+  // 회전 · 분할 화면으로 배율이 바뀌면 다시 재서 손가락과 별이 어긋나지 않게 해요.
+  const scale = useStageScale();
+  useEffect(() => {
+    measure();
+  }, [measure, scale]);
 
   const api = useMemo(() => ({ frame, measure }), [frame, measure]);
 

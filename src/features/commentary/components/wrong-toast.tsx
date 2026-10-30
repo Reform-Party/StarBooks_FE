@@ -8,15 +8,13 @@ import { FONT } from '@/constants/fonts';
 import { INK, STAR } from '@/constants/colors';
 import { TYPE } from '@/constants/typography';
 
-// raised: 퀴즈 모달 위에 띄울 때
-type Props = { visible: boolean; title?: string; sub?: string; raised?: boolean };
+type Props = { visible: boolean; title?: string; sub?: string };
 
 // 오답 안내: 분홍 "아쉬워요!" (디자인 c1-wrong)
 export default function WrongToast({
   visible,
   title = '아쉬워요!',
   sub = '다른 곳에 놓아볼까요?',
-  raised = false,
 }: Props) {
   const v = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
@@ -33,7 +31,6 @@ export default function WrongToast({
       accessibilityLiveRegion="polite"
       style={[
         styles.box,
-        raised && styles.raised,
         {
           opacity: v,
           transform: [
@@ -76,7 +73,6 @@ const styles = StyleSheet.create({
     zIndex: 20,
     boxShadow: '0px 18px 50px rgba(0,0,0,0.5)',
   },
-  raised: { zIndex: 40 },
   bg: {
     position: 'absolute',
     left: 0,

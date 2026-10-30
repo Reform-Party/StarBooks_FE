@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -31,6 +31,8 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
   // 게임 도중 서버 세션이 사라졌어요(GAME_404_1) → 처음부터 다시 시작해야 해요
   const [expired, setExpired] = useState(false);
   const leave = useState(() => new Animated.Value(1))[0];
+  // 메인으로를 빠르게 두 번 눌러도 한 번만 떠나요
+  const leaving = useRef(false);
 
   useEffect(() => {
     start(fairytaleId);
@@ -43,12 +45,16 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
 
   // 메인으로: 디졸브 0.3s 뒤 이동
   const handleHome = () => {
+    if (leaving.current) return;
+    leaving.current = true;
     Animated.timing(leave, {
       toValue: 0,
       duration: MOTION.dissolve,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
-    }).start(() => onHome());
+    }).start(({ finished }) => {
+      if (finished) onHome();
+    });
   };
 
   const renderContent = () => {

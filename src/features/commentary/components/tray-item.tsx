@@ -20,6 +20,8 @@ export type TrayDrag = {
   x: SharedValue<number>;
   y: SharedValue<number>;
   hot: SharedValue<number>;
+  // 지금 끄는 별 id (-1: 없음). 두 손가락으로 두 별을 끌면 먼저 잡은 별만 움직여요.
+  owner: SharedValue<number>;
   area: Area;
   basketCount: number;
   onStart: (id: number, x: number, y: number) => void;
@@ -41,7 +43,7 @@ type Props = {
 // 시안처럼 분류될 영역 색으로 그려요 (같은 색 = 힌트).
 export default function TrayItem({ node, selected, hidden, disabled, drag, onSelect }: Props) {
   const pulse = usePulse(selected);
-  const { frame, x, y, hot, area, basketCount, onStart, onHot, onDrop, onCancel } = drag;
+  const { frame, x, y, hot, owner, area, basketCount, onStart, onHot, onDrop, onCancel } = drag;
   const id = node.id;
 
   // 위아래로 움직였을 때만 가져가고, 옆으로 미는 건 트레이 스크롤에 양보해요.
@@ -50,6 +52,8 @@ export default function TrayItem({ node, selected, hidden, disabled, drag, onSel
     .activeOffsetY([-8, 8])
     .failOffsetX([-12, 12])
     .onStart((e) => {
+      if (owner.value !== -1) return;
+      owner.set(id);
       const p = toDesign(frame.value, e.absoluteX, e.absoluteY);
       x.set(p.x);
       y.set(p.y);
@@ -57,6 +61,7 @@ export default function TrayItem({ node, selected, hidden, disabled, drag, onSel
       scheduleOnRN(onStart, id, p.x, p.y);
     })
     .onUpdate((e) => {
+      if (owner.value !== id) return;
       const p = toDesign(frame.value, e.absoluteX, e.absoluteY);
       x.set(p.x);
       y.set(p.y);
@@ -66,10 +71,13 @@ export default function TrayItem({ node, selected, hidden, disabled, drag, onSel
         scheduleOnRN(onHot, i);
       }
     })
-    .onEnd(() => {
-      scheduleOnRN(onDrop, id, x.value, y.value);
+    // 정상적으로 손을 뗐을 때만 놓기예요. (판정 중 비활성화로 취소돼도 onEnd 가 success=false 로 불려요)
+    .onEnd((_, success) => {
+      if (owner.value === id && success) scheduleOnRN(onDrop, id, x.value, y.value);
     })
     .onFinalize((_, success) => {
+      if (owner.value !== id) return;
+      owner.set(-1);
       if (!success) scheduleOnRN(onCancel);
     });
 

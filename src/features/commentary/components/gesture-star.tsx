@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { type Animated as RNAnimated, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -18,10 +18,7 @@ type Props = {
   area: Area;
   cx: number;
   cy: number;
-  selected?: boolean;
   pop?: boolean;
-  tint?: RNAnimated.Value;
-  blocked?: boolean;
   accessibilityLabel?: string;
   // 길게 눌러 옮긴 뒤 놓은 자리
   onMoved: (id: number, at: Point) => void;
@@ -36,10 +33,7 @@ export default function GestureStar({
   area,
   cx,
   cy,
-  selected,
   pop,
-  tint,
-  blocked = false,
   accessibilityLabel,
   onMoved,
 }: Props) {
@@ -59,15 +53,13 @@ export default function GestureStar({
   }, [cx, cy, px, py]);
 
   const move = Gesture.Pan()
-    .enabled(!blocked)
     .activateAfterLongPress(MOTION.longPress)
     .onStart(() => {
       startX.set(px.value);
       startY.set(py.value);
-      lift.value = withTiming(MOTION.liftScale, {
-        duration: MOTION.spring,
-        easing: MOTION.springEase,
-      });
+      lift.set(
+        withTiming(MOTION.liftScale, { duration: MOTION.spring, easing: MOTION.springEase }),
+      );
       scheduleOnRN(haptic, 'longPress');
     })
     .onUpdate((e) => {
@@ -80,11 +72,15 @@ export default function GestureStar({
       px.set(p.x);
       py.set(p.y);
     })
-    .onFinalize(() => {
-      lift.set(withTiming(1, { duration: MOTION.spring, easing: MOTION.springEase }));
+    // 길게 눌러 실제로 옮겼을 때만 알려요. onFinalize 는 그냥 톡 누른(활성화 안 된) 경우에도
+    // 불려서, 거기서 알리면 같은 자리로 placement 가 다시 바뀌어요.
+    .onEnd(() => {
       if (px.value !== startX.value || py.value !== startY.value) {
         scheduleOnRN(onMoved, id, { x: px.value, y: py.value });
       }
+    })
+    .onFinalize(() => {
+      lift.set(withTiming(1, { duration: MOTION.spring, easing: MOTION.springEase }));
     });
 
   const box = useAnimatedStyle(() => ({
@@ -103,9 +99,7 @@ export default function GestureStar({
           name={node.word}
           cx={50}
           cy={NODE_STAR / 2}
-          selected={selected}
           pop={pop}
-          tint={tint}
           accessibilityLabel={accessibilityLabel}
         />
       </Animated.View>

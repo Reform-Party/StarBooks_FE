@@ -21,4 +21,6 @@ export const MOTION = {
   lineDraw: 250,
   longPress: 750,
   liftScale: 1.1,
+  // 3단계 별 터치: 1초 회전 (0.5초 가속 → 0.5초 감속)
+  spin: 1000,
 } as const;

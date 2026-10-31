@@ -5,6 +5,7 @@ import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import NightSky from '@/components/ui/night-sky';
 import { PORTRAIT_SCREEN, SCREEN } from '@/constants/layout';
+import { StageScaleContext } from '@/hooks/use-stage-scale';
 
 export type StageOrientation = 'landscape' | 'portrait';
 
@@ -63,7 +64,7 @@ export default function Stage({ orientation = 'landscape', minFitRatio = 0, chil
             { width: canvas.width, height: canvas.height, transform: [{ scale }] },
           ]}
         >
-          {children}
+          <StageScaleContext.Provider value={scale}>{children}</StageScaleContext.Provider>
         </View>
       ) : null}
     </View>

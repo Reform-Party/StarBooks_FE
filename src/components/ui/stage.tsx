@@ -23,13 +23,15 @@ const CANVAS = {
 
 type Props = {
   orientation?: StageOrientation;
+  // 높이가 줄어도(키보드) 폭에 맞춘 배율의 이 비율 밑으로는 줄이지 않아요. 넘치는 위아래는 잘려요.
+  minFitRatio?: number;
   children: ReactNode;
 };
 
 // 디자인 좌표(가로 874 × 402 · 세로 402 × 874)를 그대로 쓰고, 화면에 맞춰 비율대로 키우거나 줄여요.
 // 남는 여백은 밤하늘이 채우고, 화면에 들어올 때 기기 방향을 그 캔버스에 맞춰 고정해요.
 // 화면 크기 대신 자기 영역을 재서, 키보드가 올라와 영역이 줄면 캔버스도 같이 줄어요.
-export default function Stage({ orientation = 'landscape', children }: Props) {
+export default function Stage({ orientation = 'landscape', minFitRatio = 0, children }: Props) {
   const canvas = CANVAS[orientation];
   const [box, setBox] = useState({ width: 0, height: 0 });
 
@@ -45,7 +47,11 @@ export default function Stage({ orientation = 'landscape', children }: Props) {
     setBox({ width, height });
   };
 
-  const scale = Math.min(box.width / canvas.width, box.height / canvas.height);
+  const widthScale = box.width / canvas.width;
+  const scale = Math.max(
+    Math.min(widthScale, box.height / canvas.height),
+    widthScale * minFitRatio,
+  );
 
   return (
     <View style={styles.root} onLayout={handleLayout}>

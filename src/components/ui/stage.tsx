@@ -1,10 +1,11 @@
 import { useFocusEffect } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import NightSky from '@/components/ui/night-sky';
 import { PORTRAIT_SCREEN, SCREEN } from '@/constants/layout';
+import { StageScaleContext } from '@/hooks/use-stage-scale';
 
 export type StageOrientation = 'landscape' | 'portrait';
 
@@ -20,10 +21,6 @@ const CANVAS = {
     lock: ScreenOrientation.OrientationLock.PORTRAIT_UP,
   },
 } as const;
-
-// 캔버스가 몇 배로 그려졌는지. 배율이 바뀌면(회전 · 분할 화면) 손가락 좌표를 다시 재야 하는 화면에서 써요.
-const StageScaleContext = createContext(1);
-export const useStageScale = () => useContext(StageScaleContext);
 
 type Props = {
   orientation?: StageOrientation;

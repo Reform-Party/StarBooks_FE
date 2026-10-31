@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   type SharedValue,
@@ -26,10 +27,15 @@ export default function StarCarousel({ tones, running }: Props) {
   const reduced = useReducedMotion();
   const theta = useSharedValue(0);
 
-  useFrameCallback((frame) => {
-    const dt = frame.timeSincePreviousFrame ?? 0;
+  // 두 번째 인자는 첫 렌더에만 읽혀서, 켜고 끄기는 setActive 로 해요.
+  const frame = useFrameCallback((f) => {
+    const dt = f.timeSincePreviousFrame ?? 0;
     theta.set(theta.get() + (dt / TURN_MS) * 2 * Math.PI);
-  }, running && !reduced);
+  }, false);
+
+  useEffect(() => {
+    frame.setActive(running && !reduced);
+  }, [frame, running, reduced]);
 
   return (
     <View style={[styles.root, !running && styles.stopped]} pointerEvents="none">

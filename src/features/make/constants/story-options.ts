@@ -45,6 +45,8 @@ export type MakeSelection = Record<MakeKey, string | null>;
 
 export type MakeStep = {
   key: MakeKey;
+  // 이 단계 화면 주소
+  href: '/make/lesson' | '/make/hero' | '/make/background';
   starLabel: string;
   // 별 색의 뜻 — 노랑: 교훈 / 민트: 주인공 / 보라: 배경
   tone: StarColor;
@@ -57,6 +59,7 @@ export type MakeStep = {
 export const MAKE_STEPS: readonly MakeStep[] = [
   {
     key: 'lesson',
+    href: '/make/lesson',
     starLabel: '교훈',
     tone: 'yellow',
     title: '어떤 교훈을 담은 동화를 만들까요?',
@@ -65,6 +68,7 @@ export const MAKE_STEPS: readonly MakeStep[] = [
   },
   {
     key: 'species',
+    href: '/make/hero',
     starLabel: '주인공',
     tone: 'mint',
     title: '누가 주인공이 될까요?',
@@ -73,6 +77,7 @@ export const MAKE_STEPS: readonly MakeStep[] = [
   },
   {
     key: 'background',
+    href: '/make/background',
     starLabel: '배경',
     tone: 'purple',
     title: '어디를 배경으로 할까요?',

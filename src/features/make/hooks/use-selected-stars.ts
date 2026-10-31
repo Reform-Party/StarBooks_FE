@@ -1,4 +1,4 @@
-import type { ConstellationStar } from '@/features/make/components/constellation';
+import type { ConstellationStar } from '@/features/make/constants/constellation';
 import { findOption, MAKE_STEPS } from '@/features/make/constants/story-options';
 import { useMakeStore } from '@/features/make/store/make-store';
 

@@ -2,9 +2,9 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
-import { useStageScale } from '@/components/ui/stage';
 import { SCREEN } from '@/constants/layout';
 import { type CanvasFrame as Frame, CanvasContext } from '@/features/commentary/hooks/use-canvas';
+import { useStageScale } from '@/hooks/use-stage-scale';
 
 type Props = { children: ReactNode };
 

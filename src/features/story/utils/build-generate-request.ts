@@ -1,4 +1,4 @@
-import { CONSTELLATION_LAYOUT } from '@/features/make/components/constellation';
+import { CONSTELLATION_LAYOUT } from '@/features/make/constants/constellation';
 import { MAKE_STEPS, type MakeSelection } from '@/features/make/constants/story-options';
 import type { GenerateRequest } from '@/features/story/api/types';
 

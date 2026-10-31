@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { missingSteps } from '@/features/make/constants/story-options';
 import { useMakeStore } from '@/features/make/store/make-store';
 import GeneratingScreen from '@/features/story/components/generating-screen';
-import { useGenerationStore } from '@/features/story/store/generation-store';
+import { isSameSelection, useGenerationStore } from '@/features/story/store/generation-store';
 import { buildGenerateRequest } from '@/features/story/utils/build-generate-request';
 
 export default function GeneratingRoute() {
@@ -17,10 +17,15 @@ export default function GeneratingRoute() {
   const reset = useGenerationStore((s) => s.reset);
   const missing = missingSteps(selection).length > 0;
 
-  // 들어오면 한 번만 생성을 요청해요. (이미 만들고 있으면 그대로 이어요)
+  // 들어오면 생성을 요청해요. 같은 선택으로 만들고 있으면("다시 만들기" 등) 그대로 잇고,
+  // 선택이 바뀌었거나 이미 다 만든 뒤면 새로 시작해요.
   useEffect(() => {
-    if (missing || useGenerationStore.getState().status !== 'idle') return;
-    start(buildGenerateRequest(selection));
+    if (missing) return;
+    const request = buildGenerateRequest(selection);
+    const { status: current, request: running } = useGenerationStore.getState();
+    const inFlight = current !== 'idle' && current !== 'done';
+    if (inFlight && running && isSameSelection(running, request)) return;
+    void start(request);
   }, [missing, selection, start]);
 
   // 준비 신호가 오면 읽기 화면으로 넘어가요. 스트림은 스토어에서 계속 이어져요.

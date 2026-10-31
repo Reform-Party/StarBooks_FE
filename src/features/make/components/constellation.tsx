@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -15,16 +16,11 @@ import Chip from '@/components/ui/chip';
 import JellyStar from '@/components/ui/jelly-star';
 import { STAR, type StarColor } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
+import {
+  CONSTELLATION_LAYOUT,
+  type ConstellationStar,
+} from '@/features/make/constants/constellation';
 import { labelColor } from '@/features/make/constants/label-color';
-
-export type ConstellationStar = { label: string; value: string; tone: StarColor };
-
-// 완성 별자리의 별 위치 (중심 기준, Figma 화면 좌표에서 계산) · z 는 돌 때의 앞뒤 깊이
-export const CONSTELLATION_LAYOUT = [
-  { x: -145, y: -32, z: 40 },
-  { x: 145, y: -24, z: -40 },
-  { x: 0, y: 56, z: 80 },
-] as const;
 
 // 세 별의 궤도: 장반경 · 단반경 · 기울기(rad) · 시작 각도
 const ORBITS = [
@@ -91,15 +87,18 @@ type Props = {
 // 별자리 확인 (Figma design · 명세 1.1.1)
 //  세 별이 서로 다른 타원 궤도로 돎 → 타원이 점점 줄어듦(선속도 일정 → 점점 빨라짐) → 하나로 겹쳐 충돌(플래시 0.2s)
 //  → 별자리 생성 → 화면 세로축으로 천천히 회전 (수렴 약 2.4s · 이후 40s 에 한 바퀴)
-// 동작 줄이기를 켜 두면 바로 완성된 모습으로 멈춰 있어요.
+// 동작 줄이기를 켜 두면 바로 완성된 모습으로 멈춰 있어요. (그때 onFormed 는 불리지 않아요)
+// 다른 화면에 가려지면(만드는 중 · 동화 프레임 아래) 프레임 갱신을 멈춰요.
 export default function Constellation({ stars, onFormed }: Props) {
   const reduced = useReducedMotion();
+  const focused = useIsFocused();
   const elapsed = useSharedValue(reduced ? FORM_START + FORM_MS : 0);
   const angles = useSharedValue(ORBITS.map((o) => o.start));
   const notified = useSharedValue(false);
 
-  useFrameCallback((frame) => {
-    const dt = Math.min(50, frame.timeSincePreviousFrame ?? 16);
+  // 두 번째 인자는 첫 렌더에만 읽혀서, 켜고 끄기는 setActive 로 해요.
+  const frame = useFrameCallback((f) => {
+    const dt = Math.min(50, f.timeSincePreviousFrame ?? 16);
     const t = elapsed.get() + dt;
     elapsed.set(t);
     if (t < ORBIT_MS) {
@@ -111,11 +110,11 @@ export default function Constellation({ stars, onFormed }: Props) {
       notified.set(true);
       if (onFormed) scheduleOnRN(onFormed);
     }
-  }, !reduced);
+  }, false);
 
   useEffect(() => {
-    if (reduced) onFormed?.();
-  }, [reduced, onFormed]);
+    frame.setActive(!reduced && focused);
+  }, [frame, reduced, focused]);
 
   return (
     <View style={styles.root} pointerEvents="none" accessible={false}>
@@ -202,6 +201,18 @@ function EdgeLine({ from, to, elapsed }: Timing & { from: number; to: number }) 
   );
 }
 
+// 세 별 중 몇 번째로 앞에 있는지 (0~2). 깊이 값 대신 순위만 쓰면 별이 교차할 때만 zIndex 가 바뀌어
+// shadow tree 커밋이 줄어요.
+const depthRank = (index: number, t: number) => {
+  'worklet';
+  const mine = project(index, t).depth;
+  let rank = 0;
+  for (let i = 0; i < CONSTELLATION_LAYOUT.length; i++) {
+    if (i !== index && project(i, t).depth < mine) rank++;
+  }
+  return rank;
+};
+
 function FormedStar({ index, star, elapsed }: Timing & { index: number; star: ConstellationStar }) {
   const style = useAnimatedStyle(() => {
     const t = elapsed.get();
@@ -209,7 +220,7 @@ function FormedStar({ index, star, elapsed }: Timing & { index: number; star: Co
     const { x, y, depth } = project(index, t);
     return {
       opacity: 1,
-      zIndex: Math.round(depth + 200),
+      zIndex: depthRank(index, t),
       transform: [{ translateX: x }, { translateY: y }, { scale: 1 + depth / 500 }],
     };
   });

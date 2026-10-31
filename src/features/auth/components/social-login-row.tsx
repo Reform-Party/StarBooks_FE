@@ -1,14 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
 import PressableScale from '@/components/ui/pressable-scale';
 import { INK } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
-
-type Provider = 'kakao' | 'google' | 'apple';
+import SocialLogo, { type SocialProvider } from '@/features/auth/components/social-logo';
 
 // 각 회사 가이드 색 · 로고 (카카오 노랑 · Google 흰색 · Apple 검정)
-const PROVIDERS: { id: Provider; name: string; bg: string; line: string }[] = [
+const PROVIDERS: { id: SocialProvider; name: string; bg: string; line: string }[] = [
   { id: 'kakao', name: '카카오', bg: '#FEE500', line: 'transparent' },
   { id: 'google', name: 'Google', bg: '#FFFFFF', line: 'transparent' },
   { id: 'apple', name: 'Apple', bg: '#000000', line: 'rgba(255,255,255,0.22)' },
@@ -35,53 +33,10 @@ export default function SocialLoginRow({ onPress }: Props) {
           onPress={() => onPress(p.name)}
           style={[styles.button, { backgroundColor: p.bg, borderColor: p.line }]}
         >
-          <Logo provider={p.id} />
+          <SocialLogo provider={p.id} />
         </PressableScale>
       ))}
     </View>
-  );
-}
-
-function Logo({ provider }: { provider: Provider }) {
-  if (provider === 'kakao') {
-    return (
-      <Svg width={18} height={18} viewBox="0 0 18 18">
-        <Path
-          fill="#191919"
-          d="M9 1.5C4.86 1.5 1.5 4.14 1.5 7.39c0 2.08 1.38 3.9 3.46 4.95-.15.53-.55 1.98-.63 2.29-.1.38.14.38.29.27.12-.08 1.86-1.26 2.62-1.78.41.06.83.09 1.26.09 4.14 0 7.5-2.64 7.5-5.89S13.14 1.5 9 1.5Z"
-        />
-      </Svg>
-    );
-  }
-  if (provider === 'google') {
-    return (
-      <Svg width={18} height={18} viewBox="0 0 18 18">
-        <Path
-          fill="#4285F4"
-          d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"
-        />
-        <Path
-          fill="#34A853"
-          d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"
-        />
-        <Path
-          fill="#FBBC05"
-          d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33Z"
-        />
-        <Path
-          fill="#EA4335"
-          d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"
-        />
-      </Svg>
-    );
-  }
-  return (
-    <Svg width={18} height={18} viewBox="0 0 18 18">
-      <Path
-        fill="#FFFFFF"
-        d="M14.6 9.56c-.02-2.07 1.69-3.07 1.77-3.12-.97-1.41-2.47-1.6-3-1.62-1.27-.13-2.49.75-3.14.75-.65 0-1.65-.73-2.71-.71-1.39.02-2.68.81-3.4 2.06-1.45 2.52-.37 6.24 1.04 8.28.69 1 1.51 2.12 2.58 2.08 1.04-.04 1.43-.67 2.69-.67 1.25 0 1.61.67 2.71.65 1.12-.02 1.83-1.01 2.51-2.02.79-1.16 1.12-2.28 1.14-2.34-.03-.01-2.18-.84-2.19-3.34ZM12.55 3.48c.57-.69.96-1.65.85-2.61-.82.03-1.82.55-2.41 1.24-.53.61-.99 1.59-.87 2.53.92.07 1.85-.47 2.43-1.16Z"
-      />
-    </Svg>
   );
 }
 

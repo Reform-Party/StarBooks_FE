@@ -8,13 +8,20 @@ import { FONT } from '@/constants/fonts';
 import { INK, STAR } from '@/constants/colors';
 import { TYPE } from '@/constants/typography';
 
-type Props = { visible: boolean; title?: string; sub?: string };
+type Props = {
+  visible: boolean;
+  title?: string;
+  sub?: string;
+  // 퀴즈 모달 위에 띄울 때: 공용 CenterModal(zIndex 100) 위로 올리고, 선택지를 가리지 않게 위쪽에 둬요
+  raised?: boolean;
+};
 
 // 오답 안내: 분홍 "아쉬워요!" (디자인 c1-wrong)
 export default function WrongToast({
   visible,
   title = '아쉬워요!',
   sub = '다른 곳에 놓아볼까요?',
+  raised = false,
 }: Props) {
   const v = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
@@ -31,6 +38,7 @@ export default function WrongToast({
       accessibilityLiveRegion="polite"
       style={[
         styles.box,
+        raised && styles.raised,
         {
           opacity: v,
           transform: [
@@ -57,6 +65,9 @@ export default function WrongToast({
   );
 }
 
+// 퀴즈 패널(위 38pt)의 제목 쪽에 걸쳐요. 아이가 다른 답을 고르는 선택지는 가리지 않아요.
+const RAISED_TOP = 6;
+
 const styles = StyleSheet.create({
   box: {
     position: 'absolute',
@@ -73,6 +84,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
     boxShadow: '0px 18px 50px rgba(0,0,0,0.5)',
   },
+  raised: { top: RAISED_TOP, zIndex: 110 },
   bg: {
     position: 'absolute',
     left: 0,

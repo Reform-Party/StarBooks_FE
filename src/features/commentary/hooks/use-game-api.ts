@@ -53,11 +53,14 @@ export function useGameGraph(fairytaleId: number, enabled: boolean) {
   });
 }
 
+// 불러오기(edgeQueryOptions)와 캐시 읽기(useCachedEdge)가 같은 키를 써야 해설이 보여요
+const edgeKey = (edgeId: number | null) => ['game', 'edge', edgeId] as const;
+
 // 3단계에서 선을 누르면 핸들러가 queryClient.fetchQuery(edgeQueryOptions(id)) 로 불러와요.
 // 실패를 그 자리에서 배너로 알리려고 effect 대신 핸들러에서 불러요.
 export const edgeQueryOptions = (edgeId: number) =>
   queryOptions({
-    queryKey: ['game', 'edge', edgeId],
+    queryKey: edgeKey(edgeId),
     queryFn: ({ signal }) => fetchEdge(edgeId, signal),
     staleTime: Infinity,
     retry: retryOnceUnlessClientError,
@@ -65,5 +68,5 @@ export const edgeQueryOptions = (edgeId: number) =>
 
 // 해설 모달은 위에서 불러온 설명을 캐시에서 읽기만 해요 (여기서는 요청하지 않아요).
 export function useCachedEdge(edgeId: number | null) {
-  return useQuery<EdgeData>({ queryKey: ['game', 'edge', edgeId], queryFn: skipToken });
+  return useQuery<EdgeData>({ queryKey: edgeKey(edgeId), queryFn: skipToken });
 }

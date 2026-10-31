@@ -2,7 +2,13 @@ import { type GestureResponderEvent, Pressable, StyleSheet } from 'react-native'
 
 import { MIN_TOUCH, SCREEN } from '@/constants/layout';
 import type { GraphEdge } from '@/features/commentary/api/types';
-import { LINK_AREA, NODE_STAR, type Point } from '@/features/commentary/constants/board';
+import {
+  BASKET_W,
+  basketX,
+  LINK_AREA,
+  NODE_STAR,
+  type Point,
+} from '@/features/commentary/constants/board';
 import { dist, distToSegment } from '@/features/commentary/utils/game-logic';
 
 type Line = { edge: GraphEdge; a: Point; b: Point };
@@ -17,7 +23,12 @@ type Props = {
 // 별을 누른 것으로 볼 거리 (별 반지름 + 여유)
 const STAR_HIT = NODE_STAR / 2 + 8;
 // 이 영역(바구니 4개 자리)만 덮어서 위쪽 메인 버튼은 가리지 않아요
-const AREA = { left: SCREEN.safeX, top: LINK_AREA.top - 20, w: 756, h: LINK_AREA.h + 40 };
+const AREA = {
+  left: SCREEN.safeX,
+  top: LINK_AREA.top - 20,
+  w: basketX(3) + BASKET_W - SCREEN.safeX,
+  h: LINK_AREA.h + 40,
+};
 
 // 3단계 별자리 위의 터치 판정. 별 상자 · 이름표에 가려진 선 끝도 누를 수 있게,
 // 누른 자리에서 가장 가까운 별(먼저) · 관계선을 거리로 골라요.

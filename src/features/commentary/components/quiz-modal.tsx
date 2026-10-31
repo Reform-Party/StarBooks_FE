@@ -64,8 +64,11 @@ export default function QuizModal({ from, to, choices, onChoose, onCorrect, onCl
       visible
       top={PANEL_TOP}
       scrimColor={SCRIM}
-      // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 퀴즈만 닫아요
-      onRequestClose={closable ? onClose : undefined}
+      // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 퀴즈만 닫아요.
+      // 응답 대기 중에도 핸들러는 남겨 둬야 뒤로 가기가 게임 화면까지 넘어가지 않아요.
+      onRequestClose={() => {
+        if (closable) onClose();
+      }}
       panelStyle={styles.panel}
     >
       <GlassIconButton

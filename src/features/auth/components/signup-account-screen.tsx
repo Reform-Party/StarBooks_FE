@@ -18,6 +18,7 @@ type Alert = { title: string; message: string };
 export default function SignupAccountScreen() {
   const draft = useSignupDraftStore((s) => s.account);
   const setAccount = useSignupDraftStore((s) => s.setAccount);
+  const clearDraft = useSignupDraftStore((s) => s.clear);
   const [email, setEmail] = useState(draft?.email ?? '');
   const [password, setPassword] = useState(draft?.password ?? '');
   const [confirm, setConfirm] = useState(draft?.password ?? '');
@@ -45,7 +46,11 @@ export default function SignupAccountScreen() {
   return (
     <AuthScreen
       header={<StepTitle title="회원가입" step="1 / 2" />}
-      onBack={() => router.back()}
+      onBack={() => {
+        // 가입을 그만두면 적어 둔 비밀번호를 메모리에서 지워요.
+        clearDraft();
+        router.back();
+      }}
       backLabel="로그인으로 돌아가기"
       overlay={
         <AlertModal

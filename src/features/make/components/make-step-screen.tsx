@@ -14,9 +14,6 @@ import { MAKE_STEPS } from '@/features/make/constants/story-options';
 import { useMakeStore } from '@/features/make/store/make-store';
 import { useToast } from '@/hooks/use-toast';
 
-// 단계 순서대로의 화면 주소 (교훈 → 주인공 → 배경 → 별자리 확인)
-export const STEP_HREFS = ['/make/lesson', '/make/hero', '/make/background'] as const;
-
 type Props = {
   stepIndex: number;
 };
@@ -38,8 +35,8 @@ export default function MakeStepScreen({ stepIndex }: Props) {
   const goBackTo = (href: Href) => router.dismissTo(href);
 
   const handleJump = (i: number) => {
-    if (i < stepIndex) goBackTo(STEP_HREFS[i]);
-    else if (i > stepIndex) router.push(STEP_HREFS[i]);
+    if (i < stepIndex) goBackTo(MAKE_STEPS[i].href);
+    else if (i > stepIndex) router.push(MAKE_STEPS[i].href);
   };
 
   const handleNext = () => {
@@ -48,7 +45,9 @@ export default function MakeStepScreen({ stepIndex }: Props) {
       setShakeKey((n) => n + 1);
       return;
     }
-    router.push(stepIndex === STEP_HREFS.length - 1 ? '/make/confirm' : STEP_HREFS[stepIndex + 1]);
+    router.push(
+      stepIndex === MAKE_STEPS.length - 1 ? '/make/confirm' : MAKE_STEPS[stepIndex + 1].href,
+    );
   };
 
   return (
@@ -67,7 +66,7 @@ export default function MakeStepScreen({ stepIndex }: Props) {
           label="이전"
           icon={<Icon name="chevronLeft" scale={0.8} />}
           height={36}
-          onPress={() => goBackTo(stepIndex === 0 ? '/' : STEP_HREFS[stepIndex - 1])}
+          onPress={() => goBackTo(stepIndex === 0 ? '/' : MAKE_STEPS[stepIndex - 1].href)}
         />
         <JellyButton label="다음" height={36} onPress={handleNext} />
       </View>

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
 import AlertModal from '@/components/ui/alert-modal';
 import GlassIconButton from '@/components/ui/glass-icon-button';
@@ -11,9 +11,8 @@ import { INK } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
 import Constellation from '@/features/make/components/constellation';
-import { STEP_HREFS } from '@/features/make/components/make-step-screen';
 import { useSelectedStars } from '@/features/make/hooks/use-selected-stars';
-import { MAKE_STEPS, missingSteps } from '@/features/make/constants/story-options';
+import { missingSteps } from '@/features/make/constants/story-options';
 import { useMakeStore } from '@/features/make/store/make-store';
 
 type Props = {
@@ -27,7 +26,10 @@ type Props = {
 export default function MakeConfirmScreen({ onMake }: Props) {
   const selection = useMakeStore((s) => s.selection);
   const stars = useSelectedStars();
+  const reduced = useReducedMotion();
   const [formed, setFormed] = useState(false);
+  // 동작 줄이기면 별자리가 처음부터 완성돼 있어서 바로 보여 줘요.
+  const showMake = formed || reduced;
   const missing = missingSteps(selection);
   const first = missing[0];
 
@@ -38,7 +40,7 @@ export default function MakeConfirmScreen({ onMake }: Props) {
       </Text>
       <Text style={[TYPE.body, styles.sub]}>세 개의 별이 하나의 이야기로 이어졌어요</Text>
       {first ? null : <Constellation stars={stars} onFormed={() => setFormed(true)} />}
-      {formed ? (
+      {showMake ? (
         <Animated.View entering={FadeInDown.duration(400)} style={styles.action}>
           <JellyButton label="동화 만들기✦" width={162} onPress={onMake} />
         </Animated.View>
@@ -56,7 +58,7 @@ export default function MakeConfirmScreen({ onMake }: Props) {
         message={`${missing.map((s) => s.starLabel).join(', ')} 별을 골라 주세요`}
         actionLabel={first ? `${first.starLabel} 고르러 가기` : '확인'}
         onAction={() => {
-          if (first) router.dismissTo(STEP_HREFS[MAKE_STEPS.indexOf(first)]);
+          if (first) router.dismissTo(first.href);
         }}
       />
     </Stage>

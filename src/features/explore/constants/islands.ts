@@ -12,6 +12,12 @@ export const STAGE_COLORS = {
   dot: 'rgba(210, 200, 255, 0.5)',
 };
 
+// 피그마에서 내보낸 배경 이미지: 바탕 그라데이션 + 은하수와 반짝이는 점
+export const BACKGROUND_BASE: ImageSource = require('@/features/explore/assets/island-bg-base.png');
+export const BACKGROUND_GLOW: ImageSource = require('@/features/explore/assets/island-bg-glow.png');
+
+export const TITLE_FONT = 'Gaegu-Bold';
+
 export type Island = {
   id: 'fantasy' | 'medieval' | 'folktale';
   name: string;

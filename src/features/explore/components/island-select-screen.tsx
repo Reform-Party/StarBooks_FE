@@ -1,11 +1,16 @@
+import { useFonts } from 'expo-font';
+import { Image } from 'expo-image';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import FloatingIsland from '@/features/explore/components/floating-island';
 import {
+  BACKGROUND_BASE,
+  BACKGROUND_GLOW,
   ISLANDS,
   STAGE_COLORS,
   STAGE_HEIGHT,
   STAGE_WIDTH,
+  TITLE_FONT,
   type Island,
 } from '@/features/explore/constants/islands';
 
@@ -33,16 +38,26 @@ export default function IslandSelectScreen({ onSelectIsland }: Props) {
   const { width, height } = useWindowDimensions();
   const scale = Math.min(width / STAGE_WIDTH, height / STAGE_HEIGHT);
 
+  // 폰트를 불러오는 동안에는 기본 글꼴로 먼저 보여줍니다.
+  const [fontsLoaded] = useFonts({
+    [TITLE_FONT]: require('@/features/explore/assets/fonts/Gaegu-Bold.ttf'),
+  });
+
   return (
     <View style={styles.root}>
       {/* 폰 크기에 맞춰 874 x 402 화면을 줄이거나 키웁니다. */}
       <View style={[styles.stage, { transform: [{ scale }] }]}>
+        <Image source={BACKGROUND_BASE} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <Image source={BACKGROUND_GLOW} style={StyleSheet.absoluteFill} contentFit="cover" />
+
         {DOTS.map((dot, i) => (
           <View key={i} style={[styles.dot, { left: dot.x - 1.5, top: dot.y - 1.5 }]} />
         ))}
 
         <View style={styles.titleBox}>
-          <Text style={styles.title}>테마를 선택해주세요!</Text>
+          <Text style={[styles.title, fontsLoaded && { fontFamily: TITLE_FONT }]}>
+            테마를 선택해주세요!
+          </Text>
           <Text style={styles.subtitle}>내가 만든 동화가 섬마다 모여 있어요</Text>
         </View>
 

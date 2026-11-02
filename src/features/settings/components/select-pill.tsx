@@ -46,6 +46,8 @@ export default function SelectPill<T extends string | number>({
   const rootRef = useRef<View>(null);
   // 알약의 화면 좌표. 열 때마다 다시 재요.
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  // 부모가 open 을 직접 넣어도 위치를 잰 뒤에만 펼친 걸로 보여요.
+  const shown = open && anchor !== null;
   const selected = options.find((option) => option.value === value);
   // 목록을 열 때 고른 값이 보이도록 스크롤할 위치 (값이 없으면 맨 위)
   const scrollIndex = Math.min(
@@ -54,7 +56,7 @@ export default function SelectPill<T extends string | number>({
   );
 
   const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: withTiming(open ? '180deg' : '0deg', { duration: DURATION.menu }) }],
+    transform: [{ rotate: withTiming(shown ? '180deg' : '0deg', { duration: DURATION.menu }) }],
   }));
 
   const handleClose = () => onOpenChange(false);
@@ -81,7 +83,7 @@ export default function SelectPill<T extends string | number>({
         width={width}
         height={HEIGHT}
         accessibilityLabel={selected ? `${label}, ${selected.label}` : label}
-        accessibilityState={{ expanded: open }}
+        accessibilityState={{ expanded: shown }}
         onPress={handleToggle}
         style={styles.pill}
       >
@@ -94,7 +96,7 @@ export default function SelectPill<T extends string | number>({
       </PressableScale>
       <Modal
         transparent
-        visible={open && anchor !== null}
+        visible={shown}
         animationType="none"
         onRequestClose={handleClose}
         statusBarTranslucent

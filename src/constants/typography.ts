@@ -8,6 +8,10 @@ import { FONT } from '@/constants/fonts';
 // includeFontPadding: 안드로이드가 글꼴 위아래에 넣는 여백을 빼서 iOS 와 세로 위치를 맞춰요.
 const base = { includeFontPadding: false } as const;
 
+// 시스템 글자 크기 확대 상한. 버튼 · 알약 · 모달이 디자인 좌표의 고정 높이라 이보다 커지면 넘쳐요.
+// AppText 가 기본으로 적용해요.
+export const MAX_FONT_SCALE = 1.2;
+
 export const TYPE = StyleSheet.create({
   display: { ...base, fontFamily: FONT.hand, fontSize: 52, lineHeight: 57, letterSpacing: 0.52 },
   title: { ...base, fontFamily: FONT.hand, fontSize: 34, lineHeight: 41, letterSpacing: 0.34 },

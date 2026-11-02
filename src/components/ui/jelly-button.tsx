@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import AppText from '@/components/ui/app-text';
 import PressableScale from '@/components/ui/pressable-scale';
 import { GLASS, INK, STAR, type StarColor } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -69,12 +70,12 @@ export default function JellyButton({
         </View>
       ) : null}
       {icon}
-      <Text
+      <AppText
         numberOfLines={1}
         style={[tone === 'plain' ? styles.plainLabel : TYPE.button, { color: labelColor }]}
       >
         {label}
-      </Text>
+      </AppText>
     </PressableScale>
   );
 }

@@ -46,7 +46,13 @@ export default function VoiceRecordModal({
       dismissOnScrimPress={false}
       panelStyle={styles.panel}
     >
-      <AppText style={[TYPE.heading, styles.title]} accessibilityRole="header">
+      {/* 글꼴을 키워도 두 줄을 넘지 않아야 패널 344 안에 들어와요. */}
+      <AppText
+        style={[TYPE.heading, styles.title]}
+        accessibilityRole="header"
+        numberOfLines={2}
+        adjustsFontSizeToFit
+      >
         누구의 목소리로 동화를 읽어볼까요?{'\n'}
         <AppText style={styles.mascot}>샛별이</AppText>가 기억할게요!
       </AppText>

@@ -95,7 +95,8 @@ export default function Nebula({ mode, level, style }: Props) {
     );
     motion.activity.set(activity);
 
-    const targetSpeed = code === 0 ? 1 : code === 1 ? 4 : 1.5 + 5.5 * next;
+    // live 무음이면 idle 과 같은 속도로 돌아가요.
+    const targetSpeed = activityTarget === 0 ? 1 : code === 1 ? 4 : 1.5 + 5.5 * next;
     const currentSpeed = follow(speed.get(), targetSpeed, 120);
     speed.set(currentSpeed);
 

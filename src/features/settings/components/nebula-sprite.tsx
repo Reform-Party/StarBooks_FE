@@ -14,6 +14,9 @@ import {
   RIGID_E2,
 } from '@/features/settings/utils/nebula-orbit';
 
+const TILT = `${NEBULA_TILT}rad`;
+const UNTILT = `${-NEBULA_TILT}rad`;
+
 export type NebulaMotion = {
   turn: SharedValue<number>; // 모든 조각이 함께 돈 각도 (강체 회전)
   drift: SharedValue<number[]>; // 말할 때 조각(unit)마다 더 돌거나 덜 돈 각도
@@ -95,16 +98,17 @@ export default function NebulaSprite({ piece, index, orbit: o, motion }: Props) 
     // 빛띠 · 헤일로 · 고리는 경선처럼 돌며 정면 → 옆면 → 반대편으로 넘어가요.
     // 헤일로는 성운 전체를 감싸는 광채라 덜 눌려서, 옆에서 봐도 구 모양이 유지돼요.
     const face = Math.cos(angle);
-    const faceX = o.meridian ? Math.sign(face || 1) * Math.max(minFace, Math.abs(face)) : 1;
+    // 뒷면도 거울상으로 뒤집지 않아요. 헤일로 · 빛띠는 기울어진 축 기준 대칭이 아니라, 뒤집으면 0 을 지날 때 색이 튀어요.
+    const faceX = o.meridian ? Math.max(minFace, Math.abs(face)) : 1;
 
     return {
       opacity,
       transform: [
         { translateX: NEBULA_CENTER.x + sx - o.cx },
         { translateY: NEBULA_CENTER.y + sy - o.cy },
-        { rotate: `${NEBULA_TILT}rad` },
+        { rotate: TILT },
         { scaleX: faceX },
-        { rotate: `${-NEBULA_TILT}rad` },
+        { rotate: UNTILT },
         { scale },
       ],
     };

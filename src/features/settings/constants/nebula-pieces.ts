@@ -1,5 +1,5 @@
 // Figma 'Nebula / 샛별 성운' (mode=idle, step=1) 의 조각 28개.
-// 블러가 들어간 원본 SVG 를 PNG(@1x · @2x · @3x)로 미리 구워서, 기기에서 필터를 돌리지 않아요.
+// 블러가 들어간 원본 SVG 를 WebP(@1x · @2x · @3x, 손실 q90 + 무손실 알파)로 미리 구워서, 기기에서 필터를 돌리지 않아요.
 // 좌표는 196 × 196 상자 기준이고 cx · cy 는 조각 가운데, w · h 는 블러 여백까지 포함한 그림 크기예요.
 // 배열 순서는 Figma 레이어 순서예요. 같은 unit 끼리는 한 몸으로 움직여요. (그리는 순서는 nebula.tsx 에서 정해요)
 import type { ImageSourcePropType } from 'react-native';
@@ -32,7 +32,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 180.183,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-00.png'),
+    source: require('@/assets/images/nebula/nebula-00.webp'),
   },
   {
     unit: 1,
@@ -44,7 +44,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 81.5167,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-01.png'),
+    source: require('@/assets/images/nebula/nebula-01.webp'),
   },
   {
     unit: 2,
@@ -56,7 +56,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 99.2884,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-02.png'),
+    source: require('@/assets/images/nebula/nebula-02.webp'),
   },
   {
     unit: 5,
@@ -68,7 +68,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 35.0874,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-03.png'),
+    source: require('@/assets/images/nebula/nebula-03.webp'),
   },
   {
     unit: 6,
@@ -80,7 +80,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 35.0876,
     opacity: 0.74,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-04.png'),
+    source: require('@/assets/images/nebula/nebula-04.webp'),
   },
   {
     unit: 7,
@@ -92,7 +92,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 28.0877,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-05.png'),
+    source: require('@/assets/images/nebula/nebula-05.webp'),
   },
   {
     unit: 8,
@@ -104,7 +104,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 26.3377,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-06.png'),
+    source: require('@/assets/images/nebula/nebula-06.webp'),
   },
   {
     unit: 9,
@@ -116,7 +116,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 38.5873,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-07.png'),
+    source: require('@/assets/images/nebula/nebula-07.webp'),
   },
   {
     unit: 10,
@@ -128,7 +128,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 38.5879,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-08.png'),
+    source: require('@/assets/images/nebula/nebula-08.webp'),
   },
   {
     unit: 11,
@@ -140,7 +140,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 38.5879,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-09.png'),
+    source: require('@/assets/images/nebula/nebula-09.webp'),
   },
   {
     unit: 11,
@@ -152,7 +152,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 14.9627,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-10.png'),
+    source: require('@/assets/images/nebula/nebula-10.webp'),
   },
   {
     unit: 10,
@@ -164,7 +164,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 14.9627,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-11.png'),
+    source: require('@/assets/images/nebula/nebula-11.webp'),
   },
   {
     unit: 7,
@@ -176,7 +176,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 7.8749,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-12.png'),
+    source: require('@/assets/images/nebula/nebula-12.webp'),
   },
   {
     unit: 12,
@@ -188,7 +188,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 38.5876,
     opacity: 0.69,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-13.png'),
+    source: require('@/assets/images/nebula/nebula-13.webp'),
   },
   {
     unit: 13,
@@ -200,7 +200,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 38.5873,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-14.png'),
+    source: require('@/assets/images/nebula/nebula-14.webp'),
   },
   {
     unit: 14,
@@ -212,7 +212,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 19.5127,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-15.png'),
+    source: require('@/assets/images/nebula/nebula-15.webp'),
   },
   {
     unit: 15,
@@ -224,7 +224,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 35,
     opacity: 0.93,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-16.png'),
+    source: require('@/assets/images/nebula/nebula-16.webp'),
   },
   {
     unit: 16,
@@ -236,7 +236,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 29.4878,
     opacity: 0.74,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-17.png'),
+    source: require('@/assets/images/nebula/nebula-17.webp'),
   },
   {
     unit: 8,
@@ -248,7 +248,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 13.7372,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-18.png'),
+    source: require('@/assets/images/nebula/nebula-18.webp'),
   },
   {
     unit: 15,
@@ -260,7 +260,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 20.7375,
     opacity: 0.93,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-19.png'),
+    source: require('@/assets/images/nebula/nebula-19.webp'),
   },
   {
     unit: 12,
@@ -272,7 +272,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 19.8625,
     opacity: 0.69,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-20.png'),
+    source: require('@/assets/images/nebula/nebula-20.webp'),
   },
   {
     unit: 6,
@@ -284,7 +284,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 17.7628,
     opacity: 0.74,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-21.png'),
+    source: require('@/assets/images/nebula/nebula-21.webp'),
   },
   {
     unit: 6,
@@ -296,7 +296,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 12.1628,
     opacity: 0.74,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-22.png'),
+    source: require('@/assets/images/nebula/nebula-22.webp'),
   },
   {
     unit: 17,
@@ -308,7 +308,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 19.5121,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-23.png'),
+    source: require('@/assets/images/nebula/nebula-23.webp'),
   },
   {
     unit: 18,
@@ -320,7 +320,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 19.5125,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-24.png'),
+    source: require('@/assets/images/nebula/nebula-24.webp'),
   },
   {
     unit: 19,
@@ -332,7 +332,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 19.5127,
     opacity: 1,
     sharp: true,
-    source: require('@/assets/images/nebula/nebula-25.png'),
+    source: require('@/assets/images/nebula/nebula-25.webp'),
   },
   {
     unit: 4,
@@ -344,7 +344,7 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 70.2507,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-26.png'),
+    source: require('@/assets/images/nebula/nebula-26.webp'),
   },
   {
     unit: 3,
@@ -356,6 +356,6 @@ export const NEBULA_PIECES: NebulaPiece[] = [
     h: 105.217,
     opacity: 1,
     sharp: false,
-    source: require('@/assets/images/nebula/nebula-27.png'),
+    source: require('@/assets/images/nebula/nebula-27.webp'),
   },
 ];

@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, Platform, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, type SharedValue } from 'react-native-reanimated';
 
+import AppText from '@/components/ui/app-text';
 import CenterModal from '@/components/ui/center-modal';
 import GlassIconButton from '@/components/ui/glass-icon-button';
 import { INK, STAR } from '@/constants/colors';
 import { DURATION } from '@/constants/motion';
-import { TYPE } from '@/constants/typography';
+import { MAX_FONT_SCALE, TYPE } from '@/constants/typography';
 import Nebula, { type NebulaMode } from '@/features/settings/components/nebula';
 
 type Props = {
@@ -38,11 +39,17 @@ export default function VoiceRecordModal({
   }, [visible, warning]);
 
   return (
-    <CenterModal visible={visible} onRequestClose={onClose} panelStyle={styles.panel}>
-      <Text style={[TYPE.heading, styles.title]} accessibilityRole="header">
+    // 아이가 기기를 잡다가 패널 밖을 건드려도 녹음이 취소되지 않게, 닫기 버튼 · 뒤로 가기로만 닫아요.
+    <CenterModal
+      visible={visible}
+      onRequestClose={onClose}
+      dismissOnScrimPress={false}
+      panelStyle={styles.panel}
+    >
+      <AppText style={[TYPE.heading, styles.title]} accessibilityRole="header">
         누구의 목소리로 동화를 읽어볼까요?{'\n'}
-        <Text style={styles.mascot}>샛별이</Text>가 기억할게요!
-      </Text>
+        <AppText style={styles.mascot}>샛별이</AppText>가 기억할게요!
+      </AppText>
       <Nebula mode={mode} level={level} style={styles.nebula} />
       <View style={styles.line} accessibilityLiveRegion="polite">
         {warning ? (
@@ -51,18 +58,19 @@ export default function VoiceRecordModal({
             entering={FadeIn.duration(DURATION.menu)}
             numberOfLines={1}
             adjustsFontSizeToFit
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             style={[TYPE.bodyL, styles.lineText, styles.warning]}
           >
             {warning}
           </Animated.Text>
         ) : (
-          <Text
+          <AppText
             numberOfLines={1}
             adjustsFontSizeToFit
             style={[TYPE.bodyL, styles.lineText, styles.sentence]}
           >
             {sentence}
-          </Text>
+          </AppText>
         )}
       </View>
       {/* 다른 요소보다 위에 그려지도록 마지막에 둬요. */}
@@ -77,7 +85,8 @@ const styles = StyleSheet.create({
   title: { color: INK[1], textAlign: 'center', lineHeight: 32.5 },
   mascot: { color: STAR.yellow.rim },
   nebula: { marginTop: 6 },
-  line: { marginTop: 16, height: 25, maxWidth: 440, justifyContent: 'center' },
+  // 글꼴 확대 때 lineHeight 도 같이 커져서 높이는 최소값만 둬요. (MAX_FONT_SCALE 1.2배에서 패널 344 안에 들어와요)
+  line: { marginTop: 16, minHeight: 25, maxWidth: 440, justifyContent: 'center' },
   lineText: { lineHeight: 25, textAlign: 'center' },
   sentence: { color: INK[1] },
   warning: { color: STAR.pink.rim },

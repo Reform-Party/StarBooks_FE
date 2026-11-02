@@ -1,5 +1,6 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import AppText from '@/components/ui/app-text';
 import CenterModal from '@/components/ui/center-modal';
 import Icon from '@/components/ui/icon';
 import JellyButton from '@/components/ui/jelly-button';
@@ -25,9 +26,9 @@ export default function ProfilePhotoModal({
 }: Props) {
   return (
     <CenterModal visible={visible} onRequestClose={onClose} panelStyle={styles.panel}>
-      <Text style={[TYPE.heading, styles.title]} accessibilityRole="header">
+      <AppText style={[TYPE.heading, styles.title]} accessibilityRole="header">
         프로필 사진
-      </Text>
+      </AppText>
       <JellyButton
         tone="glass"
         label="기본 프로필로 바꾸기"

@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
+import AppText from '@/components/ui/app-text';
 import Icon, { type IconName } from '@/components/ui/icon';
 import PressableScale from '@/components/ui/pressable-scale';
 import { GLASS, INK, STAR } from '@/constants/colors';
@@ -57,13 +58,13 @@ export default function SoundToggle({ icon, label, value, onChange }: Props) {
         <Icon name={icon} color={value ? mint.on : INK[2]} />
       </PressableScale>
       {/* 스위치가 이미 같은 이름을 읽어서, 아래 글씨는 스크린 리더에서 숨겨요. */}
-      <Text
+      <AppText
         style={[TYPE.captionBold, styles.label]}
         accessibilityElementsHidden
         importantForAccessibility="no"
       >
         {label}
-      </Text>
+      </AppText>
     </View>
   );
 }

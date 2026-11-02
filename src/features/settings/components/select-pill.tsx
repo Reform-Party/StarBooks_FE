@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
-import { BackHandler, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
+import AppText from '@/components/ui/app-text';
 import Icon from '@/components/ui/icon';
 import PressableScale from '@/components/ui/pressable-scale';
 import { GLASS, INK, PANEL } from '@/constants/colors';
-import { RADIUS, SCREEN } from '@/constants/layout';
+import { RADIUS } from '@/constants/layout';
 import { DURATION } from '@/constants/motion';
 import { TYPE } from '@/constants/typography';
 
@@ -30,9 +31,9 @@ type Props<T extends string | number> = {
 };
 
 // 성별 · 나이 고르기 (Figma Button/Glass 여자 · 7살). 누르면 목록이 펼쳐지고, 고르면 바로 저장해요.
-// 바깥을 누르거나 안드로이드 뒤로 가기를 누르면 닫혀요.
-// 펼친 목록은 아래 형제 위로 겹쳐 그려지므로, 이 컴포넌트를 감싼 줄에 zIndex 를 주세요.
-// 바깥 터치를 받는 막과 목록이 부모 영역 밖으로 나가므로, 조상에는 overflow: 'hidden' · ScrollView 를 쓰지 마세요.
+// 바깥 · 안드로이드 뒤로 가기 · VoiceOver 두 손가락 Z 로 닫혀요.
+// 펼친 목록은 투명 Modal 레이어에 알약 위치를 재서 그려요. 부모 영역 밖에서도 안드로이드 스크롤이 되고,
+// 조상의 zIndex · overflow 와 상관없이 맨 위에 떠요. 알약 위치를 재야 해서 열기는 알약 탭으로만 해요.
 export default function SelectPill<T extends string | number>({
   label,
   value,
@@ -42,6 +43,9 @@ export default function SelectPill<T extends string | number>({
   open,
   onOpenChange,
 }: Props<T>) {
+  const rootRef = useRef<View>(null);
+  // 알약의 화면 좌표. 열 때마다 다시 재요.
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const selected = options.find((option) => option.value === value);
   // 목록을 열 때 고른 값이 보이도록 스크롤할 위치 (값이 없으면 맨 위)
   const scrollIndex = Math.min(
@@ -49,18 +53,22 @@ export default function SelectPill<T extends string | number>({
     Math.max(0, options.length - MAX_ROWS),
   );
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onOpenChange(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [open, onOpenChange]);
-
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: withTiming(open ? '180deg' : '0deg', { duration: DURATION.menu }) }],
   }));
+
+  const handleClose = () => onOpenChange(false);
+
+  const handleToggle = () => {
+    if (open) {
+      handleClose();
+      return;
+    }
+    rootRef.current?.measureInWindow((x, y) => {
+      setAnchor({ x, y });
+      onOpenChange(true);
+    });
+  };
 
   const handleSelect = (next: T) => {
     onOpenChange(false);
@@ -68,75 +76,75 @@ export default function SelectPill<T extends string | number>({
   };
 
   return (
-    <View style={[styles.root, { width }, open && styles.rootOpen]}>
-      {open ? (
-        <Pressable accessible={false} onPress={() => onOpenChange(false)} style={styles.backdrop} />
-      ) : null}
+    <View ref={rootRef} style={[styles.root, { width }]}>
       <PressableScale
         width={width}
         height={HEIGHT}
-        accessibilityLabel={`${label}, ${selected?.label ?? ''}`}
+        accessibilityLabel={selected ? `${label}, ${selected.label}` : label}
         accessibilityState={{ expanded: open }}
-        onPress={() => onOpenChange(!open)}
+        onPress={handleToggle}
         style={styles.pill}
       >
-        <Text style={[TYPE.button, styles.value]} numberOfLines={1}>
+        <AppText style={[TYPE.button, styles.value]} numberOfLines={1}>
           {selected?.label}
-        </Text>
+        </AppText>
         <Animated.View style={chevronStyle}>
           <Icon name="chevronDown" />
         </Animated.View>
       </PressableScale>
-      {open ? (
-        <Animated.View
-          entering={FadeIn.duration(DURATION.menu)}
-          exiting={FadeOut.duration(DURATION.menu)}
-          style={styles.menu}
-        >
-          <FlatList
-            data={options}
-            keyExtractor={(option) => String(option.value)}
-            getItemLayout={(_, index) => ({ length: ROW, offset: ROW * index, index })}
-            initialScrollIndex={scrollIndex}
-            renderItem={({ item }) => {
-              const isSelected = item.value === value;
-              return (
-                <Pressable
-                  accessibilityRole="menuitem"
-                  accessibilityState={{ selected: isSelected }}
-                  onPress={() => handleSelect(item.value)}
-                  style={[styles.option, isSelected && styles.optionSelected]}
-                >
-                  <Text
-                    style={[
-                      TYPE.button,
-                      isSelected ? styles.optionTextSelected : styles.optionText,
-                    ]}
-                    numberOfLines={1}
+      <Modal
+        transparent
+        visible={open && anchor !== null}
+        animationType="none"
+        onRequestClose={handleClose}
+        statusBarTranslucent
+        navigationBarTranslucent
+        supportedOrientations={['landscape-left', 'landscape-right', 'portrait']}
+      >
+        <Pressable accessible={false} onPress={handleClose} style={StyleSheet.absoluteFill} />
+        {anchor ? (
+          <Animated.View
+            entering={FadeIn.duration(DURATION.menu)}
+            exiting={FadeOut.duration(DURATION.menu)}
+            onAccessibilityEscape={handleClose}
+            style={[styles.menu, { left: anchor.x, top: anchor.y + HEIGHT + 6, width }]}
+          >
+            <FlatList
+              data={options}
+              keyExtractor={(option) => String(option.value)}
+              getItemLayout={(_, index) => ({ length: ROW, offset: ROW * index, index })}
+              initialScrollIndex={scrollIndex}
+              renderItem={({ item }) => {
+                const isSelected = item.value === value;
+                return (
+                  <Pressable
+                    accessibilityRole="menuitem"
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => handleSelect(item.value)}
+                    style={[styles.option, isSelected && styles.optionSelected]}
                   >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            }}
-          />
-        </Animated.View>
-      ) : null}
+                    <AppText
+                      style={[
+                        TYPE.button,
+                        isSelected ? styles.optionTextSelected : styles.optionText,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.label}
+                    </AppText>
+                  </Pressable>
+                );
+              }}
+            />
+          </Animated.View>
+        ) : null}
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { height: HEIGHT },
-  rootOpen: { zIndex: 10 },
-  // 화면 어디를 눌러도 닫히도록 874 × 402 화면보다 넓게 깔아요.
-  backdrop: {
-    position: 'absolute',
-    left: -SCREEN.width,
-    top: -SCREEN.height,
-    width: SCREEN.width * 3,
-    height: SCREEN.height * 3,
-  },
   pill: {
     height: HEIGHT,
     flexDirection: 'row',
@@ -152,9 +160,6 @@ const styles = StyleSheet.create({
   value: { flex: 1, color: INK[1] },
   menu: {
     position: 'absolute',
-    top: HEIGHT + 6,
-    left: 0,
-    right: 0,
     maxHeight: ROW * MAX_ROWS + (MENU_PADDING + MENU_BORDER) * 2,
     padding: MENU_PADDING,
     borderRadius: RADIUS.card,

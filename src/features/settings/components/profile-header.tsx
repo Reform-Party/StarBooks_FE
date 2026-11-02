@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
+import AppText from '@/components/ui/app-text';
 import GlassIconButton from '@/components/ui/glass-icon-button';
 import JellyStar from '@/components/ui/jelly-star';
 import { INK, STAR } from '@/constants/colors';
@@ -59,10 +60,10 @@ export default function ProfileHeader({ nickname, photoUri, onPressChangePhoto }
         />
       </View>
       <View style={styles.nameRow}>
-        <Text style={[TYPE.title, styles.nickname]} numberOfLines={1}>
+        <AppText style={[TYPE.title, styles.nickname]} numberOfLines={1}>
           {nickname}
-        </Text>
-        <Text style={[TYPE.body, styles.suffix]}>작가님</Text>
+        </AppText>
+        <AppText style={[TYPE.body, styles.suffix]}>작가님</AppText>
       </View>
     </View>
   );

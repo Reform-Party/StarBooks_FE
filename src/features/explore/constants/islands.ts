@@ -1,33 +1,16 @@
 import type { ImageSource } from 'expo-image';
 
-// 피그마 화면 규격: iPhone 16 Pro 가로
-export const STAGE_WIDTH = 874;
-export const STAGE_HEIGHT = 402;
-
-// 공통 디자인 토큰 PR(#6)이 합쳐지면 그쪽 값으로 교체합니다.
-export const STAGE_COLORS = {
-  background: '#0D1024',
-  title: '#FDE68A',
-  subtitle: '#CBD5E1',
-  dot: 'rgba(210, 200, 255, 0.5)',
-};
-
-// 피그마에서 내보낸 배경 이미지: 바탕 그라데이션 + 은하수와 반짝이는 점
-export const BACKGROUND_BASE: ImageSource = require('@/features/explore/assets/island-bg-base.png');
-export const BACKGROUND_GLOW: ImageSource = require('@/features/explore/assets/island-bg-glow.png');
-
-export const TITLE_FONT = 'Gaegu-Bold';
-
 export type Island = {
   id: 'fantasy' | 'medieval' | 'folktale';
   name: string;
   source: ImageSource;
-  centerX: number; // 섬 가운데 가로 위치
-  top: number; // 이미지 위쪽 세로 위치
-  floatMs: number; // 둥실 한 번 오가는 시간
+  centerX: number;
+  top: number;
+  floatMs: number;
 };
 
-// 섬 이미지(170 x 174)에는 이름과 동화 편수 글씨가 들어 있습니다.
+// SVG의 기존 캔버스 크기를 유지합니다.
+// 섬 이름과 동화 편수는 FloatingIsland에서 표시합니다.
 export const ISLAND_WIDTH = 170;
 export const ISLAND_HEIGHT = 174;
 

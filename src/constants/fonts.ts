@@ -5,17 +5,19 @@ import type { FontSource } from 'expo-font';
 export const FONT = {
   hand: 'Gaegu-Bold', // 26pt 이상 제목 · 별 이름
   pop: 'ONEMobilePOP', // 17–25pt 본문 · 버튼 · 선택지 (굵기 하나뿐)
-  sans: 'Pretendard-Medium', // 17pt 미만 설명
-  sansSemi: 'Pretendard-SemiBold',
-  sansBold: 'Pretendard-Bold', // 칩 · 라벨 · 숫자
+  sans: 'StarBooksSans-Medium', // 17pt 미만 설명
+  sansSemi: 'StarBooksSans-SemiBold',
+  sansBold: 'StarBooksSans-Bold', // 칩 · 라벨 · 숫자
 } as const;
 
 // useFonts(APP_FONTS) 로 불러와요.
-// 라이선스: Gaegu · Pretendard = SIL OFL 1.1 / ONE 모바일 POP = ㈜원스토어 (앱 탑재 가능, 파일 수정·재배포 금지)
+// 라이선스: Gaegu · Pretendard = SIL OFL 1.1 (assets/fonts/OFL-*.txt) / ONE 모바일 POP = ㈜원스토어 (앱 탑재 가능, 파일 수정·재배포 금지)
+// Gaegu · Pretendard 는 KS X 1001 (한자 제외) + ASCII + 문장 부호로 서브셋했어요. 고친 판은 예약 글꼴 이름을 못 써서
+// Pretendard 서브셋은 StarBooks Sans 로 이름을 바꿨어요. ONE 모바일 POP 은 수정 금지라 원본 그대로예요.
 export const APP_FONTS: Record<(typeof FONT)[keyof typeof FONT], FontSource> = {
   [FONT.hand]: require('@/assets/fonts/Gaegu-Bold.ttf'),
   [FONT.pop]: require('@/assets/fonts/ONE-Mobile-POP.ttf'),
-  [FONT.sans]: require('@/assets/fonts/Pretendard-Medium.ttf'),
-  [FONT.sansSemi]: require('@/assets/fonts/Pretendard-SemiBold.ttf'),
-  [FONT.sansBold]: require('@/assets/fonts/Pretendard-Bold.ttf'),
+  [FONT.sans]: require('@/assets/fonts/StarBooksSans-Medium.ttf'),
+  [FONT.sansSemi]: require('@/assets/fonts/StarBooksSans-SemiBold.ttf'),
+  [FONT.sansBold]: require('@/assets/fonts/StarBooksSans-Bold.ttf'),
 };

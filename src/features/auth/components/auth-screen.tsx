@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, StyleSheet, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import GlassIconButton from '@/components/ui/glass-icon-button';
@@ -38,7 +38,10 @@ export default function AuthScreen({
     // SDK 57 은 Android 도 edge-to-edge 라 창이 줄지 않아서, 두 플랫폼 모두 padding 으로 비켜요.
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
       <Stage orientation="portrait" minFitRatio={KEYBOARD_MIN_FIT}>
-        <View style={styles.center}>
+        {/* 키보드가 떠 있으면 뒤로 가기 · 토스트가 잘려 보여서, 빈 곳을 누르면 키보드를 닫아요.
+            (iOS 는 바깥을 눌러도 닫히지 않고, 나이 칸 number-pad 는 리턴 키가 없어요) */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} accessible={false} />
+        <View style={styles.center} pointerEvents="box-none">
           {hero}
           <Animated.View
             entering={FadeInDown.duration(DURATION.modal).withInitialValues({

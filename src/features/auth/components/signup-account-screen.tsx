@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { router, useNavigation } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, type TextInput } from 'react-native';
 
 import AlertModal from '@/components/ui/alert-modal';
@@ -25,6 +25,14 @@ export default function SignupAccountScreen() {
   const [alert, setAlert] = useState<Alert | null>(null);
   const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
+  const navigation = useNavigation();
+
+  // 가입을 그만두면 적어 둔 비밀번호를 메모리에서 지워요.
+  // 버튼 · Android 뒤로 가기 · 스와이프 모두 이 화면이 스택에서 빠질 때 한 번에 처리해요.
+  useEffect(
+    () => navigation.addListener('beforeRemove', () => clearDraft()),
+    [navigation, clearDraft],
+  );
 
   const handleNext = () => {
     if (!email.trim() || !password || !confirm) {
@@ -46,11 +54,7 @@ export default function SignupAccountScreen() {
   return (
     <AuthScreen
       header={<StepTitle title="회원가입" step="1 / 2" />}
-      onBack={() => {
-        // 가입을 그만두면 적어 둔 비밀번호를 메모리에서 지워요.
-        clearDraft();
-        router.back();
-      }}
+      onBack={() => router.back()}
       backLabel="로그인으로 돌아가기"
       overlay={
         <AlertModal

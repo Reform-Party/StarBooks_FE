@@ -8,6 +8,7 @@ import Stage from '@/components/ui/stage';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
+import ConstellationEdgeHints from '@/features/explore/components/constellation-edge-hints';
 import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
 import type { Island } from '@/features/explore/constants/islands';
 import type { StorySummary } from '@/features/explore/types/story';
@@ -46,6 +47,7 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory }: Pro
   const hasNext = currentPage + 1 < pageCount;
 
   const visibleStories = stories.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const lastPoint = POSITIONS[visibleStories.length - 1];
 
   const movePage = useCallback(
     (step: -1 | 1) => {
@@ -113,6 +115,15 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory }: Pro
             direction === 0 ? undefined : direction === 1 ? ENTER_FROM_RIGHT : ENTER_FROM_LEFT
           }
         >
+          {lastPoint ? (
+            <ConstellationEdgeHints
+              firstPoint={POSITIONS[0]}
+              lastPoint={lastPoint}
+              hasPrevious={hasPrevious}
+              hasNext={hasNext}
+            />
+          ) : null}
+
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             <Svg width={SCREEN.width} height={SCREEN.height}>
               {visibleStories.slice(1).map((story, index) => {

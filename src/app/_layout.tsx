@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,10 +8,9 @@ import { useEffect } from 'react';
 import { SKY } from '@/constants/colors';
 import { APP_FONTS } from '@/constants/fonts';
 import { useAuthStore } from '@/features/auth/store/auth-store';
+import { queryClient } from '@/lib/query-client';
 
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient();
 
 // 앱은 밤하늘 한 가지 테마만 써요. 화면이 바뀌는 사이에도 흰 바탕이 비치지 않게 맞춰요.
 const NAV_THEME = {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import GlassIconButton from '@/components/ui/glass-icon-button';
@@ -7,6 +7,8 @@ import Panel from '@/components/ui/panel';
 import Stage from '@/components/ui/stage';
 import { PORTRAIT_SCREEN } from '@/constants/layout';
 import { DURATION } from '@/constants/motion';
+
+const KEYBOARD_MIN_FIT = 0.8;
 
 type Props = {
   // 패널 위에 놓는 제목 (로그인의 "별나라 책방")
@@ -22,7 +24,8 @@ type Props = {
 };
 
 // 로그인 · 회원가입 · 아이 정보 공통 틀 (세로 402 × 874 · 패널 폭 338)
-// 패널은 아래에서 12pt 올라오며 나타나요. 키보드가 올라오면 캔버스가 그만큼 줄어 입력칸이 가리지 않아요.
+// 패널은 아래에서 12pt 올라오며 나타나요. 키보드가 올라오면 캔버스가 줄어 입력칸이 가리지 않아요.
+// 너무 작아지지 않게 폭 기준 배율의 KEYBOARD_MIN_FIT 까지만 줄이고, 넘치는 위아래(제목 등)는 잘려요.
 export default function AuthScreen({
   hero,
   header,
@@ -32,12 +35,13 @@ export default function AuthScreen({
   children,
 }: Props) {
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Stage orientation="portrait">
-        <View style={styles.center}>
+    // SDK 57 은 Android 도 edge-to-edge 라 창이 줄지 않아서, 두 플랫폼 모두 padding 으로 비켜요.
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <Stage orientation="portrait" minFitRatio={KEYBOARD_MIN_FIT}>
+        {/* 키보드가 떠 있으면 뒤로 가기 · 토스트가 잘려 보여서, 빈 곳을 누르면 키보드를 닫아요.
+            (iOS 는 바깥을 눌러도 닫히지 않고, 나이 칸 number-pad 는 리턴 키가 없어요) */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} accessible={false} />
+        <View style={styles.center} pointerEvents="box-none">
           {hero}
           <Animated.View
             entering={FadeInDown.duration(DURATION.modal).withInitialValues({

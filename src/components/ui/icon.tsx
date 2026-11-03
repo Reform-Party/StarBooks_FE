@@ -62,6 +62,30 @@ const ICONS = {
     stroke: 1.46667,
     d: ['M0.733333 0.733333L4.73333 4.73333L8.73333 0.733333'],
   },
+  // 이전 · 다음 (회원가입 뒤로 가기 · 만들기 이전 / 다음 버튼)
+  chevronLeft: {
+    w: 7.65,
+    h: 13.65,
+    stroke: 1.65,
+    d: ['M6.825 0.825L0.825 6.825L6.825 12.825'],
+  },
+  chevronRight: {
+    w: 7.65,
+    h: 13.65,
+    stroke: 1.65,
+    d: ['M0.825 0.825L6.825 6.825L0.825 12.825'],
+  },
+  // 설정 톱니. 24 × 24 로 그린 path 를 17pt 로 줄여 그려요.
+  settings: {
+    w: 17,
+    h: 17,
+    box: 24,
+    stroke: 1.8,
+    d: [
+      'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+      'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z',
+    ],
+  },
   image: {
     w: 15.15,
     h: 15.15,
@@ -83,9 +107,12 @@ type Props = {
 };
 
 export default function Icon({ name, color = INK[1], scale = 1 }: Props) {
-  const { w, h, stroke, d } = ICONS[name];
+  const icon = ICONS[name];
+  const { w, h, stroke, d } = icon;
+  // box 가 있으면 path 를 그 크기(정사각형)로 그렸다는 뜻이에요.
+  const viewBox = 'box' in icon ? `0 0 ${icon.box} ${icon.box}` : `0 0 ${w} ${h}`;
   return (
-    <Svg width={w * scale} height={h * scale} viewBox={`0 0 ${w} ${h}`} fill="none">
+    <Svg width={w * scale} height={h * scale} viewBox={viewBox} fill="none">
       {d.map((path) => (
         <Path
           key={path}

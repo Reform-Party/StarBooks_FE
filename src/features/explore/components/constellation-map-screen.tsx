@@ -18,6 +18,14 @@ type Props = {
   stories: StorySummary[];
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
+  pagination?: {
+    page: number;
+    totalPages: number;
+    totalElements: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+    onPageChange: (page: number) => void;
+  };
 };
 
 // 별 중심 좌표: 왼쪽부터 지그재그로 연결합니다.
@@ -37,28 +45,43 @@ export default function ConstellationMapScreen(props: Props) {
   return <ConstellationMapContent key={props.island.id} {...props} />;
 }
 
-function ConstellationMapContent({ island, stories, onBack, onSelectStory }: Props) {
+function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagination }: Props) {
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const pageSize = POSITIONS.length;
-  const pageCount = Math.ceil(stories.length / pageSize);
-  const currentPage = Math.min(page, Math.max(0, pageCount - 1));
-  const hasPrevious = currentPage > 0;
-  const hasNext = currentPage + 1 < pageCount;
 
-  const visibleStories = stories.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const pageCount = pagination?.totalPages ?? Math.ceil(stories.length / pageSize);
+
+  const currentPage = pagination?.page ?? Math.min(page, Math.max(0, pageCount - 1));
+
+  const totalElements = pagination?.totalElements ?? stories.length;
+  const hasPrevious = pagination?.hasPrevious ?? currentPage > 0;
+  const hasNext = pagination?.hasNext ?? currentPage + 1 < pageCount;
+
+  const visibleStories = pagination
+    ? stories
+    : stories.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+
   const lastPoint = POSITIONS[visibleStories.length - 1];
+  const onPageChange = pagination?.onPageChange;
 
   const movePage = useCallback(
     (step: -1 | 1) => {
-      const nextPage = currentPage + step;
+      if (step === -1 && !hasPrevious) return;
+      if (step === 1 && !hasNext) return;
 
+      const nextPage = currentPage + step;
       if (nextPage < 0 || nextPage >= pageCount) return;
 
       setDirection(step);
-      setPage(nextPage);
+
+      if (onPageChange) {
+        onPageChange(nextPage);
+      } else {
+        setPage(nextPage);
+      }
     },
-    [currentPage, pageCount],
+    [currentPage, pageCount, hasPrevious, hasNext, onPageChange],
   );
 
   const panResponder = useMemo(
@@ -93,7 +116,7 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory }: Pro
           {island.name}
         </Text>
         <Text maxFontSizeMultiplier={1.2} style={styles.count}>
-          내 동화 {stories.length}편
+          내 동화 {totalElements}편
         </Text>
       </View>
 

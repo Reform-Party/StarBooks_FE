@@ -201,8 +201,7 @@ function EdgeLine({ from, to, elapsed }: Timing & { from: number; to: number }) 
   );
 }
 
-// 세 별 중 몇 번째로 앞에 있는지 (0~2). 깊이 값 대신 순위만 쓰면 별이 교차할 때만 zIndex 가 바뀌어
-// shadow tree 커밋이 줄어요.
+// 세 별 중 몇 번째로 앞에 있는지 (0~2). 깊이 값 대신 순위만 써서 zIndex 를 작은 범위로 유지해요.
 const depthRank = (index: number, t: number) => {
   'worklet';
   const mine = project(index, t).depth;

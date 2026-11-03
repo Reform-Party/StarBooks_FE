@@ -28,10 +28,11 @@ export default function MakeConfirmScreen({ onMake }: Props) {
   const stars = useSelectedStars();
   const reduced = useReducedMotion();
   const [formed, setFormed] = useState(false);
-  // 동작 줄이기면 별자리가 처음부터 완성돼 있어서 바로 보여 줘요.
-  const showMake = formed || reduced;
   const missing = missingSteps(selection);
   const first = missing[0];
+  // 동작 줄이기면 별자리가 처음부터 완성돼 있어서 바로 보여 줘요.
+  // 빠진 별이 있으면 별자리를 그리지 않으니, 알림창 아래에 버튼도 두지 않아요 (TalkBack 포커스).
+  const showMake = !first && (formed || reduced);
 
   return (
     <Stage>

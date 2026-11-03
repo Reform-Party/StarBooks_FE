@@ -23,15 +23,19 @@ export default function GeneratingRoute() {
     if (missing) return;
     const request = buildGenerateRequest(selection);
     const { status: current, request: running } = useGenerationStore.getState();
-    const inFlight = current !== 'idle' && current !== 'done';
+    // 실패한 뒤 다시 들어오면 이전 오류를 보여 주지 않고 새로 요청해요.
+    const inFlight = current === 'connecting' || current === 'streaming' || current === 'ready';
     if (inFlight && running && isSameSelection(running, request)) return;
     void start(request);
   }, [missing, selection, start]);
 
   // 준비 신호가 오면 읽기 화면으로 넘어가요. 스트림은 스토어에서 계속 이어져요.
+  // 렌더 때 값이 아니라 지금 스토어 값을 봐요. 위 effect 가 같은 커밋에서 새로 시작했으면
+  // 렌더 때 값은 이전 동화라서, 그대로 쓰면 이전 동화로 넘어가요.
   useEffect(() => {
-    if ((status === 'ready' || status === 'done') && storyId) {
-      router.replace({ pathname: '/story/[id]', params: { id: storyId } });
+    const { status: now, storyId: id } = useGenerationStore.getState();
+    if ((now === 'ready' || now === 'done') && id) {
+      router.replace({ pathname: '/story/[id]', params: { id } });
     }
   }, [status, storyId]);
 

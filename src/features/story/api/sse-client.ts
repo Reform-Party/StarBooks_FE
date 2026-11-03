@@ -121,6 +121,10 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
     }
     const tail = parseBlock(buffer);
     if (tail) onMessage(tail);
+  } catch (e) {
+    // 읽기 루프 밖으로 나가는 예외(onMessage 등)면, 부른 쪽 리스너를 지우기 전에 여기서 연결을 닫아요.
+    controller.abort();
+    throw e;
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);

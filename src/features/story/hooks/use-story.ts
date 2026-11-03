@@ -7,5 +7,7 @@ export function useStory(id: string | null) {
   return useQuery({
     queryKey: ['story', id],
     queryFn: id == null ? skipToken : () => fetchStory(id),
+    // 다 만든 동화는 바뀌지 않아서, 캐시에 있으면 다시 요청하지 않아요.
+    staleTime: Infinity,
   });
 }

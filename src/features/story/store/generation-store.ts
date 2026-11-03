@@ -124,6 +124,8 @@ export const useGenerationStore = create<GenerationState>()((set, get) => ({
       if (current.signal.aborted) return;
       // 읽기 도중 실패해도 연결이 남지 않게 닫아요. (iOS 는 reader.cancel() 만으로 요청이 닫히지 않아요)
       current.abort();
+      // done · error 를 받은 뒤 늦게 끊긴 연결(무응답 타이머 등)은 결과를 바꾸지 않아요.
+      if (finished) return;
       // TypeError 같은 내부 문구가 아이 화면에 보이지 않게, 서버 · 네트워크 오류 문구만 보여 줘요.
       set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
     } finally {

@@ -12,6 +12,28 @@ type Props = {
 
 export const STORY_STAR_SIZE = 76;
 
+function splitTitle(title: string): string[] {
+  const words = title.trim().split(/\s+/);
+
+  if (words.length < 2) return [title];
+
+  let bestIndex = 1;
+  let bestDifference = Infinity;
+
+  for (let index = 1; index < words.length; index += 1) {
+    const left = words.slice(0, index).join(' ');
+    const right = words.slice(index).join(' ');
+    const difference = Math.abs(left.length - right.length);
+
+    if (difference < bestDifference) {
+      bestIndex = index;
+      bestDifference = difference;
+    }
+  }
+
+  return [words.slice(0, bestIndex).join(' '), words.slice(bestIndex).join(' ')];
+}
+
 export default function StoryStar({ story, onPress }: Props) {
   return (
     <Pressable
@@ -25,15 +47,18 @@ export default function StoryStar({ story, onPress }: Props) {
       </View>
 
       <View pointerEvents="none" style={styles.titleBox}>
-        <Text
-          accessible={false}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-          maxFontSizeMultiplier={1.2}
-          style={styles.title}
-        >
-          {story.title}
-        </Text>
+        {splitTitle(story.title).map((line, index) => (
+          <Text
+            key={index}
+            accessible={false}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={1.2}
+            style={styles.title}
+          >
+            {line}
+          </Text>
+        ))}
       </View>
     </Pressable>
   );
@@ -59,6 +84,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    width: '100%',
     fontFamily: FONT.sansBold,
     fontSize: 13,
     lineHeight: 15,

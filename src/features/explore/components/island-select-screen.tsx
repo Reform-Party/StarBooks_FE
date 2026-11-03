@@ -9,6 +9,7 @@ import { ISLANDS, type Island } from '@/features/explore/constants/islands';
 
 type Props = {
   onSelectIsland?: (island: Island) => void;
+  storyCounts?: Partial<Record<Island['id'], number>>;
 };
 
 const DOT_COUNT = 18;
@@ -27,7 +28,7 @@ const DOTS = Array.from({ length: DOT_COUNT }, (_, i) => {
   };
 });
 
-export default function IslandSelectScreen({ onSelectIsland }: Props) {
+export default function IslandSelectScreen({ onSelectIsland, storyCounts }: Props) {
   return (
     <Stage orientation="landscape">
       {DOTS.map((dot, i) => (
@@ -44,7 +45,12 @@ export default function IslandSelectScreen({ onSelectIsland }: Props) {
       </View>
 
       {ISLANDS.map((island) => (
-        <FloatingIsland key={island.id} island={island} onPress={onSelectIsland} />
+        <FloatingIsland
+          key={island.id}
+          island={island}
+          storyCount={storyCounts?.[island.id]}
+          onPress={onSelectIsland}
+        />
       ))}
     </Stage>
   );

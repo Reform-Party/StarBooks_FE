@@ -14,8 +14,11 @@ const POP_IN = new Keyframe({
 
 type Props = {
   visible: boolean;
-  // 스크림을 누르거나 안드로이드 뒤로 가기를 눌렀을 때. 없으면 스크림을 눌러도 닫히지 않아요.
+  // 안드로이드 뒤로 가기 · VoiceOver 두 손가락 Z (+ dismissOnScrimPress 면 스크림 탭) 때.
+  // 보이는 동안 뒤로 가기는 항상 모달이 받아서, 없어도 아래 화면이 pop 되지 않아요.
   onRequestClose?: () => void;
+  // 스크림을 눌러도 닫을지. 녹음처럼 실수로 닫히면 안 되는 모달은 false 로 두세요.
+  dismissOnScrimPress?: boolean;
   panelStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
 };
@@ -23,11 +26,21 @@ type Props = {
 // 화면 가운데 뜨는 패널 + 어두운 스크림.
 // RN Modal 대신 부모 화면 위에 겹쳐 그려서, 874 × 402 디자인 좌표를 그대로 써요.
 // 부모 화면의 가장 마지막 자식으로 두세요.
-export default function CenterModal({ visible, onRequestClose, panelStyle, children }: Props) {
+// accessibilityViewIsModal 은 iOS 전용이라, 안드로이드 TalkBack 이 뒤 화면으로 가지 않게
+// 부모가 모달이 열린 동안 나머지 형제를 감싼 뷰에 importantForAccessibility 를 줘야 해요.
+//   <View importantForAccessibility={visible ? 'no-hide-descendants' : 'auto'}>…</View>
+//   <CenterModal visible={visible} … />
+export default function CenterModal({
+  visible,
+  onRequestClose,
+  dismissOnScrimPress = true,
+  panelStyle,
+  children,
+}: Props) {
   useEffect(() => {
-    if (!visible || !onRequestClose) return undefined;
+    if (!visible) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onRequestClose();
+      onRequestClose?.();
       return true;
     });
     return () => sub.remove();
@@ -45,7 +58,7 @@ export default function CenterModal({ visible, onRequestClose, panelStyle, child
     >
       <Pressable
         accessible={false}
-        disabled={!onRequestClose}
+        disabled={!onRequestClose || !dismissOnScrimPress}
         onPress={onRequestClose}
         style={StyleSheet.absoluteFill}
       />

@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { type ReactNode, useCallback, useState } from 'react';
-import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { type LayoutChangeEvent, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import NightSky from '@/components/ui/night-sky';
 import { PORTRAIT_SCREEN, SCREEN } from '@/constants/layout';
@@ -24,6 +24,7 @@ const CANVAS = {
 type Props = {
   orientation?: StageOrientation;
   // 높이가 줄어도(키보드) 폭에 맞춘 배율의 이 비율 밑으로는 줄이지 않아요. 넘치는 위아래는 잘려요.
+  // 단, 키보드가 없을 때 화면에 다 들어오는 배율보다 크게 잡지는 않아요.
   minFitRatio?: number;
   children: ReactNode;
 };
@@ -47,10 +48,12 @@ export default function Stage({ orientation = 'landscape', minFitRatio = 0, chil
     setBox({ width, height });
   };
 
+  const { height: windowHeight } = useWindowDimensions();
   const widthScale = box.width / canvas.width;
+  // 하한은 키보드가 없을 때 맞춘 배율을 넘지 않게 해요 (태블릿 · 분할 화면에서 잘리지 않게).
   const scale = Math.max(
     Math.min(widthScale, box.height / canvas.height),
-    widthScale * minFitRatio,
+    Math.min(widthScale * minFitRatio, windowHeight / canvas.height),
   );
 
   return (

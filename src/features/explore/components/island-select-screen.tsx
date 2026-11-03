@@ -40,8 +40,12 @@ export default function IslandSelectScreen({ onSelectIsland, storyCounts }: Prop
       ))}
 
       <View pointerEvents="none" style={styles.titleBox}>
-        <Text style={[TYPE.heading, styles.title]}>테마를 선택해주세요!</Text>
-        <Text style={styles.subtitle}>내가 만든 동화가 섬마다 모여 있어요</Text>
+        <Text maxFontSizeMultiplier={1.2} style={[TYPE.heading, styles.title]}>
+          테마를 선택해주세요!
+        </Text>
+        <Text maxFontSizeMultiplier={1.2} style={styles.subtitle}>
+          내가 만든 동화가 섬마다 모여 있어요
+        </Text>
       </View>
 
       {ISLANDS.map((island) => (

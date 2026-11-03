@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { INK } from '@/constants/colors';
+import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { ISLAND_HEIGHT, ISLAND_WIDTH, type Island } from '@/features/explore/constants/islands';
 
@@ -22,8 +22,8 @@ type Props = {
 
 const NAME_COLORS: Record<Island['id'], string> = {
   fantasy: '#99F6E4',
-  medieval: '#E9D5FF',
-  folktale: '#FDE68A',
+  medieval: STAR.purple.rim,
+  folktale: STAR.yellow.rim,
 };
 
 export default function FloatingIsland({ island, storyCount, onPress }: Props) {
@@ -66,8 +66,14 @@ export default function FloatingIsland({ island, storyCount, onPress }: Props) {
           contentFit="contain"
           accessible={false}
         />
-        <Text style={[styles.name, { color: NAME_COLORS[island.id] }]}>{island.name}</Text>
-        {storyCount != null ? <Text style={styles.count}>동화 {storyCount}편</Text> : null}
+        <Text maxFontSizeMultiplier={1.2} style={[styles.name, { color: NAME_COLORS[island.id] }]}>
+          {island.name}
+        </Text>
+        {storyCount != null ? (
+          <Text maxFontSizeMultiplier={1.2} style={styles.count}>
+            동화 {storyCount}편
+          </Text>
+        ) : null}
       </Animated.View>
     </Pressable>
   );

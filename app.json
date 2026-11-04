@@ -34,7 +34,13 @@
         }
       ],
       "expo-secure-store",
-      ["expo-screen-orientation", { "initialOrientation": "DEFAULT" }]
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

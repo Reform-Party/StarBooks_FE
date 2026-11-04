@@ -4,6 +4,16 @@ import { INK } from '@/constants/colors';
 
 // Figma 아이콘 symbol 에서 그대로 옮긴 선 아이콘. 크기(w × h)는 디자인에 놓인 크기예요.
 const ICONS = {
+  book: {
+    w: 18,
+    h: 18,
+    stroke: 1.5,
+    d: [
+      'M9 4C7 2.5 4 2.5 1 3V15C4 14.5 7 14.5 9 16',
+      'M9 4C11 2.5 14 2.5 17 3V15C14 14.5 11 14.5 9 16',
+      'M9 4V16',
+    ],
+  },
   home: {
     w: 15.15,
     h: 15.15,

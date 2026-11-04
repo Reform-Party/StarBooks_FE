@@ -1,5 +1,5 @@
-import type { GenerateRequest, Story, StoryEvent, StoryPage } from '@/features/story/api/types';
 import { type SseMessage, streamSse } from '@/features/story/api/sse-client';
+import type { GenerateRequest, Story, StoryEvent, StoryPage } from '@/features/story/api/types';
 import { request } from '@/lib/api-client';
 
 // 규격이 목 서버 기준이라, BE 와 필드가 달라도 화면이 깨지지 않게 이벤트마다 필요한 필드를 확인해요.
@@ -59,7 +59,47 @@ export const generateStory = (body: GenerateRequest, { signal, onEvent }: Genera
 const STORY_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const isValidStoryId = (id: unknown): id is string => isStr(id) && STORY_ID_RE.test(id);
 
+type FairytaleDetailDto = {
+  fairytaleId: number;
+  title: string;
+  authorName: string;
+  paragraphs: {
+    page: number;
+    sentences: string[];
+    imageUrl: string | null;
+    ttsUrl?: string | null;
+  }[];
+  vocab: {
+    wordEntryId: number;
+    pageNo: number;
+    word: string;
+    meaning: string;
+  }[];
+};
+
 export async function fetchStory(id: string): Promise<Story> {
-  const { story } = await request<{ story: Story }>(`/api/stories/${encodeURIComponent(id)}`);
-  return story;
+  if (!/^[1-9]\d*$/.test(id)) {
+    throw new Error('동화 번호가 올바르지 않아요.');
+  }
+
+  const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`);
+
+  return {
+    id: String(data.fairytaleId),
+    title: data.title,
+    authorName: data.authorName,
+    pages: data.paragraphs.map((paragraph) => ({
+      page: paragraph.page,
+      text: paragraph.sentences.join('\n'),
+      sentences: paragraph.sentences,
+      imageUrl: paragraph.imageUrl,
+      ttsUrl: paragraph.ttsUrl ?? null,
+    })),
+    vocab: data.vocab.map((entry) => ({
+      wordEntryId: entry.wordEntryId,
+      pageNo: entry.pageNo,
+      word: entry.word,
+      meaning: entry.meaning,
+    })),
+  };
 }

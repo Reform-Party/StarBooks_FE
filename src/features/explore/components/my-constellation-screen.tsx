@@ -1,13 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Stage from '@/components/ui/stage';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
-import { fetchMyStories } from '@/features/explore/api/my-stories-api';
 import ConstellationMapScreen from '@/features/explore/components/constellation-map-screen';
 import type { Island } from '@/features/explore/constants/islands';
+import { useMyStories } from '@/features/explore/hooks/use-my-stories';
 import type { StorySummary } from '@/features/explore/types/story';
 import { API_URL } from '@/lib/api-client';
 
@@ -24,18 +23,7 @@ export default function MyConstellationScreen(props: Props) {
 function MyConstellationContent({ island, onBack, onSelectStory }: Props) {
   const [page, setPage] = useState(0);
 
-  const query = useQuery({
-    queryKey: ['explore', 'my-stories', island.id, page],
-    queryFn: ({ signal }) =>
-      fetchMyStories({
-        islandId: island.id,
-        page,
-        signal,
-      }),
-    enabled: Boolean(API_URL),
-    retry: false,
-    gcTime: 0,
-  });
+  const query = useMyStories(island.id, page);
 
   if (!API_URL || query.isPending || query.isError) {
     const isLoading = Boolean(API_URL) && query.isPending;
@@ -96,7 +84,17 @@ function MyConstellationContent({ island, onBack, onSelectStory }: Props) {
         totalElements: result.totalElements,
         hasPrevious: result.hasPrevious,
         hasNext: result.hasNext,
-        onPageChange: setPage,
+        onPageChange: (nextPage) => {
+          if (query.isFetching || query.isPlaceholderData || query.fetchStatus === 'paused') {
+            return;
+          }
+
+          if (!Number.isInteger(nextPage) || nextPage < 0 || nextPage >= result.totalPages) {
+            return;
+          }
+
+          setPage(nextPage);
+        },
       }}
     />
   );

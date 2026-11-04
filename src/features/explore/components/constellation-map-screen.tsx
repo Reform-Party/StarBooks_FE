@@ -1,3 +1,4 @@
+import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -18,7 +19,7 @@ type Props = {
   stories: StorySummary[];
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
-  pagination?: {
+  pagination: {
     page: number;
     totalPages: number;
     totalElements: number;
@@ -28,16 +29,6 @@ type Props = {
   };
 };
 
-// 별 중심 좌표: 왼쪽부터 지그재그로 연결합니다.
-const POSITIONS = [
-  { x: 158, y: 225 },
-  { x: 350, y: 315 },
-  { x: 385, y: 195 },
-  { x: 550, y: 295 },
-  { x: 620, y: 165 },
-  { x: 742, y: 305 },
-] as const;
-
 const ENTER_FROM_RIGHT = FadeInRight.duration(350).easing(Easing.out(Easing.cubic));
 const ENTER_FROM_LEFT = FadeInLeft.duration(350).easing(Easing.out(Easing.cubic));
 
@@ -46,24 +37,19 @@ export default function ConstellationMapScreen(props: Props) {
 }
 
 function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagination }: Props) {
-  const [page, setPage] = useState(0);
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
-  const pageSize = POSITIONS.length;
+  const {
+    page: currentPage,
+    totalPages: pageCount,
+    totalElements,
+    hasPrevious,
+    hasNext,
+    onPageChange,
+  } = pagination;
 
-  const pageCount = pagination?.totalPages ?? Math.ceil(stories.length / pageSize);
-
-  const currentPage = pagination?.page ?? Math.min(page, Math.max(0, pageCount - 1));
-
-  const totalElements = pagination?.totalElements ?? stories.length;
-  const hasPrevious = pagination?.hasPrevious ?? currentPage > 0;
-  const hasNext = pagination?.hasNext ?? currentPage + 1 < pageCount;
-
-  const visibleStories = pagination
-    ? stories
-    : stories.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-
+  // 서버가 요청한 개수보다 많이 보내도 좌표가 있는 만큼만 표시해요.
+  const visibleStories = stories.slice(0, POSITIONS.length);
   const lastPoint = POSITIONS[visibleStories.length - 1];
-  const onPageChange = pagination?.onPageChange;
 
   const movePage = useCallback(
     (step: -1 | 1) => {
@@ -75,11 +61,7 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
 
       setDirection(step);
 
-      if (onPageChange) {
-        onPageChange(nextPage);
-      } else {
-        setPage(nextPage);
-      }
+      onPageChange(nextPage);
     },
     [currentPage, pageCount, hasPrevious, hasNext, onPageChange],
   );
@@ -170,15 +152,8 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
             </Svg>
           </View>
 
-          <View
-            style={{
-              position: 'absolute',
-              top: 160,
-              left: 0,
-              right: 0,
-              bottom: 50,
-            }}
-          />
+          {/* 빈 하늘에서 시작한 스와이프를 받도록 네이티브 뷰를 유지해요. */}
+          <View collapsable={false} style={styles.swipeArea} />
 
           {visibleStories.map((story, index) => {
             const point = POSITIONS[index];
@@ -265,6 +240,13 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
 }
 
 const styles = StyleSheet.create({
+  swipeArea: {
+    position: 'absolute',
+    top: 160,
+    left: 0,
+    right: 0,
+    bottom: 50,
+  },
   pageButton: {
     position: 'absolute',
     top: 120,

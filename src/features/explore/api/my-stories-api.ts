@@ -1,3 +1,4 @@
+import { STORIES_PAGE_SIZE } from '@/features/explore/constants/constellation';
 import type { Island } from '@/features/explore/constants/islands';
 import type { StorySummary } from '@/features/explore/types/story';
 import { request } from '@/lib/api-client';
@@ -9,8 +10,6 @@ const API_ISLAND: Record<Island['id'], ApiIsland> = {
   medieval: 'MEDIEVAL',
   folktale: 'TRADITIONAL',
 };
-
-export const STORIES_PAGE_SIZE = 6;
 
 type FairytaleSummaryDto = {
   fairytaleId: number;

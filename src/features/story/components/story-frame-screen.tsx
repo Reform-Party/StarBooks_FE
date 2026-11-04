@@ -1,7 +1,17 @@
-import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import Chip from '@/components/ui/chip';
@@ -14,6 +24,7 @@ import { FONT } from '@/constants/fonts';
 import { RADIUS, SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
+import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
 
 const PAPER_INK_2 = '#6B6790';
@@ -35,7 +46,7 @@ type Props = {
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.
 // 책 속지 Paper · 보라 표지 · 본문 ONE Mobile POP 21.5 / 1.75
-// ※ 읽기 화면 최종 UI(책 넘김 · 단어장 · 낭독)는 ② 솔 / ④ 준석 파트에서 이 프레임을 이어받아요.
+// 생성 중 화면과 저장된 동화 읽기 화면에서 함께 사용해요.
 export default function StoryFrameScreen({
   title,
   authorName,
@@ -50,37 +61,89 @@ export default function StoryFrameScreen({
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
   const [autoReadPage, setAutoReadPage] = useState<number | null>(null);
+  const [turning, setTurning] = useState(false);
+  const [angle] = useState(() => new Animated.Value(0));
+  const [turnTarget, setTurnTarget] = useState<{
+    index: number;
+    step: -1 | 1;
+  } | null>(null);
+  const turnLock = useRef(false);
+  const [showBack, setShowBack] = useState(false);
+
+  useEffect(() => {
+    let previous = false;
+    const listener = angle.addListener(({ value }) => {
+      const next = Math.abs(value) >= 90;
+      if (next !== previous) {
+        previous = next;
+        setShowBack(next);
+      }
+    });
+    return () => angle.removeListener(listener);
+  }, [angle]);
   const page = pages[index];
+  const illustrationPage = turnTarget?.step === -1 ? pages[turnTarget.index] : page;
+  const textPage = turnTarget?.step === 1 ? pages[turnTarget.index] : page;
   const progress = totalPages > 0 && page ? Math.min((index + 1) / totalPages, 1) : 0;
   // 다음 쪽은 글이 한 글자라도 도착해야 넘길 수 있어요.
   const hasNext = index < totalPages - 1;
   const canNext = hasNext && !!pages[index + 1]?.text;
   const writing = streaming && !!page && (!pages[index + 1]?.text || !page.imageUrl);
-  const movePage = useCallback(
-    (step: -1 | 1) => {
-      setAutoReadPage(null);
-
-      setIndex((current) => {
-        const next = current + step;
-
-        if (next < 0 || next >= totalPages) return current;
-        if (step === 1 && !pages[next]?.text) return current;
-
-        return next;
-      });
-    },
-    [pages, totalPages],
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        angle.stopAnimation();
+        angle.setValue(0);
+        turnLock.current = false;
+        setTurning(false);
+        setTurnTarget(null);
+        setAutoReadPage(null);
+      };
+    }, [angle]),
   );
 
+  const turnPage = useCallback(
+    (step: -1 | 1, continueReading: boolean) => {
+      const nextIndex = index + step;
+      if (vocabOpen || turnLock.current) return;
+      if (nextIndex < 0 || nextIndex >= totalPages) return;
+      if (!pages[nextIndex]?.text) return;
+
+      turnLock.current = true;
+      setTurning(true);
+      setAutoReadPage(null);
+
+      setShowBack(false);
+      setTurnTarget({ index: nextIndex, step });
+      angle.setValue(0);
+
+      // 다음: 오른쪽 종이를 왼쪽으로. 이전: 왼쪽 종이를 오른쪽으로.
+      Animated.timing(angle, {
+        toValue: step === 1 ? -180 : 180,
+        duration: 450,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: Platform.OS !== 'web',
+      }).start(({ finished }) => {
+        if (!finished) return;
+
+        setIndex(nextIndex);
+        setTurnTarget(null);
+        turnLock.current = false;
+        setAutoReadPage(continueReading && pages[nextIndex]?.ttsUrl ? nextIndex : null);
+        setTurning(false);
+        angle.setValue(0);
+      });
+    },
+    [angle, index, pages, totalPages, vocabOpen],
+  );
+
+  const movePage = useCallback((step: -1 | 1) => turnPage(step, false), [turnPage]);
+
   const handleNarrationFinished = useCallback(() => {
-    if (vocabOpen || !canNext) return;
+    turnPage(1, true);
+  }, [turnPage]);
 
-    const nextIndex = index + 1;
-
-    setAutoReadPage(pages[nextIndex]?.ttsUrl ? nextIndex : null);
-    setIndex(nextIndex);
-  }, [vocabOpen, canNext, index, pages]);
-
+  /* eslint-disable react-hooks/refs -- PanResponder에 전달한 콜백은 터치 이벤트에서 실행돼요. */
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -99,12 +162,13 @@ export default function StoryFrameScreen({
       }),
     [movePage],
   );
+  /* eslint-enable react-hooks/refs */
 
   return (
     <Stage>
       <View
         style={StyleSheet.absoluteFill}
-        pointerEvents={vocabOpen ? 'none' : 'auto'}
+        pointerEvents={vocabOpen || turning ? 'none' : 'auto'}
         accessibilityElementsHidden={vocabOpen}
         importantForAccessibility={vocabOpen ? 'no-hide-descendants' : 'auto'}
       >
@@ -131,23 +195,87 @@ export default function StoryFrameScreen({
           <Cover />
           <View style={[styles.leaf, styles.leftLeaf]}>
             <StoryIllustration
-              key={`${page?.page ?? index}:${page?.imageUrl ?? 'empty'}`}
-              imageUrl={page?.imageUrl ?? null}
-              pageNumber={page?.page ?? index + 1}
+              key={`${illustrationPage?.page ?? index}:${illustrationPage?.imageUrl ?? 'empty'}`}
+              imageUrl={illustrationPage?.imageUrl ?? null}
+              pageNumber={illustrationPage?.page ?? index + 1}
               streaming={streaming}
             />
           </View>
           <View style={[styles.leaf, styles.rightLeaf]}>
-            <ScrollView key={index} style={styles.bodyScroll}>
+            <ScrollView key={textPage?.page ?? index} style={styles.bodyScroll}>
               <Text selectable style={styles.body}>
-                {page?.text}
-                {writing ? <Text style={styles.caret}> ▍</Text> : null}
+                {textPage?.text}
+                {writing && !turning ? <Text style={styles.caret}> ▍</Text> : null}
               </Text>
             </ScrollView>
             <Text style={styles.pageNo}>
-              {index + 1} / {totalPages || '…'}
+              {textPage?.page ?? index + 1} / {totalPages || '…'}
             </Text>
           </View>
+
+          {turnTarget ? (
+            <Animated.View
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[
+                styles.turningLeaf,
+                turnTarget.step === 1 ? styles.turnFromRight : styles.turnFromLeft,
+                {
+                  transform: [
+                    { perspective: 1600 },
+                    {
+                      rotateY: angle.interpolate({
+                        inputRange: [-180, 180],
+                        outputRange: ['-180deg', '180deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {!showBack ? (
+                <View
+                  style={[
+                    styles.turnFace,
+                    turnTarget.step === 1 ? styles.rightLeaf : styles.leftLeaf,
+                  ]}
+                >
+                  {turnTarget.step === 1 ? (
+                    <Text maxFontSizeMultiplier={1.2} style={styles.body}>
+                      {page?.text}
+                    </Text>
+                  ) : (
+                    <StoryIllustration
+                      imageUrl={page?.imageUrl ?? null}
+                      pageNumber={page?.page ?? index + 1}
+                      streaming={streaming}
+                    />
+                  )}
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.turnFace,
+                    styles.turnBack,
+                    turnTarget.step === 1 ? styles.leftLeaf : styles.rightLeaf,
+                  ]}
+                >
+                  {turnTarget.step === 1 ? (
+                    <StoryIllustration
+                      imageUrl={pages[turnTarget.index]?.imageUrl ?? null}
+                      pageNumber={pages[turnTarget.index]?.page ?? turnTarget.index + 1}
+                      streaming={streaming}
+                    />
+                  ) : (
+                    <Text maxFontSizeMultiplier={1.2} style={styles.body}>
+                      {pages[turnTarget.index]?.text}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </Animated.View>
+          ) : null}
         </View>
 
         {error ? (
@@ -159,13 +287,13 @@ export default function StoryFrameScreen({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="이전 쪽"
-          accessibilityState={{ disabled: index === 0 }}
-          disabled={index === 0}
+          accessibilityState={{ disabled: index === 0 || turning }}
+          disabled={index === 0 || turning}
           onPress={() => movePage(-1)}
           style={({ pressed }) => [
             styles.pageButton,
             styles.previousButton,
-            index === 0 && styles.disabledButton,
+            (index === 0 || turning) && styles.disabledButton,
             pressed && styles.pressedButton,
           ]}
         >
@@ -175,13 +303,13 @@ export default function StoryFrameScreen({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={hasNext && !canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
-          accessibilityState={{ disabled: !canNext }}
-          disabled={!canNext}
+          accessibilityState={{ disabled: !canNext || turning }}
+          disabled={!canNext || turning}
           onPress={() => movePage(1)}
           style={({ pressed }) => [
             styles.pageButton,
             styles.nextButton,
-            !canNext && styles.disabledButton,
+            (!canNext || turning) && styles.disabledButton,
             pressed && styles.pressedButton,
           ]}
         >
@@ -215,12 +343,14 @@ export default function StoryFrameScreen({
           style={styles.vocabButton}
         />
 
-        <StoryNarrationButton
-          key={`${index}:${page?.ttsUrl ?? 'empty'}`}
-          uri={page?.ttsUrl ?? null}
-          autoStart={autoReadPage === index}
-          onFinished={handleNarrationFinished}
-        />
+        {!turning ? (
+          <StoryNarrationButton
+            key={`${index}:${page?.ttsUrl ?? 'empty'}`}
+            uri={page?.ttsUrl ?? null}
+            autoStart={autoReadPage === index}
+            onFinished={handleNarrationFinished}
+          />
+        ) : null}
 
         <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.home} />
       </View>
@@ -345,6 +475,32 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 2,
     borderRightWidth: 1,
     borderRightColor: PAPER.edge,
+  },
+  turningLeaf: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    zIndex: 5,
+  },
+  turnFromRight: {
+    left: '50%',
+    right: 8,
+    transformOrigin: 'left center',
+  },
+  turnFromLeft: {
+    left: 8,
+    right: '50%',
+    transformOrigin: 'right center',
+  },
+  turnFace: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: PAPER.fill,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: PAPER.edge,
+  },
+  turnBack: {
+    transform: [{ rotateY: '180deg' }],
   },
   rightLeaf: {
     paddingTop: 20,

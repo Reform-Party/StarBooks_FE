@@ -98,6 +98,7 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
           title={notReady ? '관계도를 준비하고 있어요' : '관계도를 불러오지 못했어요'}
           sub={notReady ? '조금만 기다렸다가 다시 눌러 주세요!' : '잠시 후 다시 시도해 주세요.'}
           onRetry={() => start(fairytaleId)}
+          onHome={handleHome}
         />
       );
     }
@@ -107,6 +108,7 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
           title="시간이 지나서 게임이 끝났어요"
           sub="처음부터 다시 해볼까요?"
           onRetry={restart}
+          onHome={handleHome}
         />
       );
     }

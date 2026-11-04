@@ -1,4 +1,3 @@
-import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +9,9 @@ import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
 import ConstellationEdgeHints from '@/features/explore/components/constellation-edge-hints';
+import StorySelectModal from '@/features/explore/components/story-select-modal';
 import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
+import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
 import type { Island } from '@/features/explore/constants/islands';
 import type { StorySummary } from '@/features/explore/types/story';
 
@@ -19,6 +20,7 @@ type Props = {
   stories: StorySummary[];
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
+  onCommentary?: (story: StorySummary) => void;
   pagination: {
     page: number;
     totalPages: number;
@@ -36,8 +38,18 @@ export default function ConstellationMapScreen(props: Props) {
   return <ConstellationMapContent key={props.island.id} {...props} />;
 }
 
-function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagination }: Props) {
+function ConstellationMapContent({
+  island,
+  stories,
+  onBack,
+  onSelectStory,
+  onCommentary,
+  pagination,
+}: Props) {
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  const [selectedStory, setSelectedStory] = useState<StorySummary | null>(null);
+  const isModalOpen = selectedStory !== null;
+
   const {
     page: currentPage,
     totalPages: pageCount,
@@ -53,6 +65,7 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
 
   const movePage = useCallback(
     (step: -1 | 1) => {
+      if (isModalOpen) return;
       if (step === -1 && !hasPrevious) return;
       if (step === 1 && !hasNext) return;
 
@@ -60,16 +73,16 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
       if (nextPage < 0 || nextPage >= pageCount) return;
 
       setDirection(step);
-
       onPageChange(nextPage);
     },
-    [currentPage, pageCount, hasPrevious, hasNext, onPageChange],
+    [currentPage, pageCount, hasPrevious, hasNext, onPageChange, isModalOpen],
   );
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponderCapture: (_, gesture) =>
+          !isModalOpen &&
           gesture.numberActiveTouches === 1 &&
           Math.abs(gesture.dx) > 12 &&
           Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
@@ -82,159 +95,198 @@ function ConstellationMapContent({ island, stories, onBack, onSelectStory, pagin
         },
         onPanResponderTerminationRequest: () => true,
       }),
-    [movePage],
+    [movePage, isModalOpen],
   );
 
   return (
     <Stage orientation="landscape">
-      <View pointerEvents="none" style={styles.header}>
-        <Image
-          source={island.source}
-          style={styles.islandImage}
-          contentFit="contain"
-          accessible={false}
-        />
-        <Text maxFontSizeMultiplier={1.2} style={styles.heading}>
-          {island.name}
-        </Text>
-        <Text maxFontSizeMultiplier={1.2} style={styles.count}>
-          내 동화 {totalElements}편
-        </Text>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="섬 선택으로 돌아가기"
-        onPress={onBack}
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+      <View
+        style={StyleSheet.absoluteFill}
+        pointerEvents={isModalOpen ? 'none' : 'auto'}
+        accessibilityElementsHidden={isModalOpen}
+        importantForAccessibility={isModalOpen ? 'no-hide-descendants' : 'auto'}
       >
-        <Text style={styles.backText}>섬 선택</Text>
-      </Pressable>
+        <View pointerEvents="none" style={styles.header}>
+          <Image
+            source={island.source}
+            style={styles.islandImage}
+            contentFit="contain"
+            accessible={false}
+          />
+          <Text maxFontSizeMultiplier={1.2} style={styles.heading}>
+            {island.name}
+          </Text>
+          <Text maxFontSizeMultiplier={1.2} style={styles.count}>
+            내 동화 {totalElements}편
+          </Text>
+        </View>
 
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
-        <Animated.View
-          key={currentPage}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="섬 선택으로 돌아가기"
+          onPress={onBack}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+        >
+          <Text maxFontSizeMultiplier={1.2} style={styles.backText}>
+            섬 선택
+          </Text>
+        </Pressable>
+
+        <View
           pointerEvents="box-none"
           style={StyleSheet.absoluteFill}
-          entering={
-            direction === 0 ? undefined : direction === 1 ? ENTER_FROM_RIGHT : ENTER_FROM_LEFT
-          }
+          {...panResponder.panHandlers}
         >
-          {lastPoint ? (
-            <ConstellationEdgeHints
-              firstPoint={POSITIONS[0]}
-              lastPoint={lastPoint}
-              hasPrevious={hasPrevious}
-              hasNext={hasNext}
-            />
-          ) : null}
-
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <Svg width={SCREEN.width} height={SCREEN.height}>
-              {visibleStories.slice(1).map((story, index) => {
-                const start = POSITIONS[index];
-                const end = POSITIONS[index + 1];
-
-                return (
-                  <Line
-                    key={story.id}
-                    x1={start.x}
-                    y1={start.y}
-                    x2={end.x}
-                    y2={end.y}
-                    stroke={STAR.yellow.rim}
-                    strokeWidth={3}
-                    strokeOpacity={0.22}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-            </Svg>
-          </View>
-
-          {/* 빈 하늘에서 시작한 스와이프를 받도록 네이티브 뷰를 유지해요. */}
-          <View collapsable={false} style={styles.swipeArea} />
-
-          {visibleStories.map((story, index) => {
-            const point = POSITIONS[index];
-
-            return (
-              <View
-                key={story.id}
-                style={[
-                  styles.starSlot,
-                  {
-                    left: point.x - STORY_STAR_SIZE / 2,
-                    top: point.y - STORY_STAR_SIZE / 2,
-                  },
-                ]}
-              >
-                <StoryStar story={story} onPress={onSelectStory} />
-              </View>
-            );
-          })}
-        </Animated.View>
-      </View>
-      {hasPrevious ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="이전 쪽"
-          onPress={() => movePage(-1)}
-          style={({ pressed }) => [
-            styles.pageButton,
-            styles.previousButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
-            ‹
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {hasNext ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="다음 쪽"
-          onPress={() => movePage(1)}
-          style={({ pressed }) => [styles.pageButton, styles.nextButton, pressed && styles.pressed]}
-        >
-          <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
-            ›
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {pageCount > 0 ? (
-        <View style={styles.footer}>
-          <View
-            accessible
-            accessibilityLabel={`${pageCount}쪽 중 ${currentPage + 1}쪽`}
-            style={styles.pageIndicator}
+          <Animated.View
+            key={currentPage}
+            pointerEvents="box-none"
+            style={StyleSheet.absoluteFill}
+            entering={
+              direction === 0 ? undefined : direction === 1 ? ENTER_FROM_RIGHT : ENTER_FROM_LEFT
+            }
           >
-            {Array.from({ length: pageCount }, (_, index) => (
-              <View
-                key={index}
-                style={[styles.pageDot, index === currentPage && styles.activePageDot]}
+            {lastPoint ? (
+              <ConstellationEdgeHints
+                firstPoint={POSITIONS[0]}
+                lastPoint={lastPoint}
+                hasPrevious={hasPrevious}
+                hasNext={hasNext}
               />
-            ))}
-            <Text maxFontSizeMultiplier={1.2} style={styles.pageText}>
-              {currentPage + 1} / {pageCount}
+            ) : null}
+
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <Svg width={SCREEN.width} height={SCREEN.height}>
+                {visibleStories.slice(1).map((story, index) => {
+                  const start = POSITIONS[index];
+                  const end = POSITIONS[index + 1];
+
+                  return (
+                    <Line
+                      key={story.id}
+                      x1={start.x}
+                      y1={start.y}
+                      x2={end.x}
+                      y2={end.y}
+                      stroke={STAR.yellow.rim}
+                      strokeWidth={3}
+                      strokeOpacity={0.22}
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </Svg>
+            </View>
+
+            {/* 빈 하늘에서 시작한 스와이프를 받도록 네이티브 뷰를 유지해요. */}
+            <View collapsable={false} style={styles.swipeArea} />
+
+            {visibleStories.map((story, index) => {
+              const point = POSITIONS[index];
+
+              return (
+                <View
+                  key={story.id}
+                  style={[
+                    styles.starSlot,
+                    {
+                      left: point.x - STORY_STAR_SIZE / 2,
+                      top: point.y - STORY_STAR_SIZE / 2,
+                    },
+                  ]}
+                >
+                  <StoryStar story={story} onPress={setSelectedStory} />
+                </View>
+              );
+            })}
+          </Animated.View>
+        </View>
+
+        {hasPrevious ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="이전 쪽"
+            onPress={() => movePage(-1)}
+            style={({ pressed }) => [
+              styles.pageButton,
+              styles.previousButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
+              ‹
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {hasNext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="다음 쪽"
+            onPress={() => movePage(1)}
+            style={({ pressed }) => [
+              styles.pageButton,
+              styles.nextButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
+              ›
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {pageCount > 0 ? (
+          <View style={styles.footer}>
+            <View
+              accessible
+              accessibilityLabel={`${pageCount}쪽 중 ${currentPage + 1}쪽`}
+              style={styles.pageIndicator}
+            >
+              {Array.from({ length: pageCount }, (_, index) => (
+                <View
+                  key={index}
+                  style={[styles.pageDot, index === currentPage && styles.activePageDot]}
+                />
+              ))}
+              <Text maxFontSizeMultiplier={1.2} style={styles.pageText}>
+                {currentPage + 1} / {pageCount}
+              </Text>
+            </View>
+
+            {pageCount > 1 ? (
+              <Text maxFontSizeMultiplier={1.2} style={styles.pageHint}>
+                다른 쪽에도 내가 만든 동화가 있어요
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {stories.length === 0 ? (
+          <View style={styles.empty}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.emptyText}>
+              아직 이 섬에 동화가 없어요
             </Text>
           </View>
-          {pageCount > 1 ? (
-            <Text maxFontSizeMultiplier={1.2} style={styles.pageHint}>
-              다른 쪽에도 내가 만든 동화가 있어요
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
-      {stories.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>아직 이 섬에 동화가 없어요</Text>
-        </View>
-      ) : null}
+      <StorySelectModal
+        story={selectedStory}
+        islandName={island.name}
+        onClose={() => setSelectedStory(null)}
+        onRead={(story) => {
+          setSelectedStory(null);
+          onSelectStory(story);
+        }}
+        onCommentary={
+          onCommentary
+            ? (story) => {
+                setSelectedStory(null);
+                onCommentary(story);
+              }
+            : undefined
+        }
+      />
     </Stage>
   );
 }
@@ -308,7 +360,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: INK[3],
   },
-
   header: {
     position: 'absolute',
     top: 6,

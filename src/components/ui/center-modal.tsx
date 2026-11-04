@@ -1,5 +1,12 @@
 import { type ReactNode, useEffect } from 'react';
-import { BackHandler, Pressable, type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
+import {
+  BackHandler,
+  Platform,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, Keyframe } from 'react-native-reanimated';
 
 import Panel from '@/components/ui/panel';
@@ -50,7 +57,7 @@ export default function CenterModal({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(DURATION.modal)}
+      entering={Platform.OS === 'web' ? undefined : FadeIn.duration(DURATION.modal)}
       exiting={FadeOut.duration(DURATION.menu).easing(Easing.in(Easing.ease))}
       style={styles.scrim}
       accessibilityViewIsModal
@@ -62,7 +69,7 @@ export default function CenterModal({
         onPress={onRequestClose}
         style={StyleSheet.absoluteFill}
       />
-      <Animated.View entering={POP_IN}>
+      <Animated.View entering={Platform.OS === 'web' ? undefined : POP_IN}>
         <Panel style={panelStyle}>{children}</Panel>
       </Animated.View>
     </Animated.View>

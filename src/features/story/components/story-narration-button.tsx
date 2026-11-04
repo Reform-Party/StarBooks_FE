@@ -9,18 +9,22 @@ import { SCREEN } from '@/constants/layout';
 
 type Props = {
   uri: string | null;
+  autoStart?: boolean;
+  onFinished?: () => void;
 };
 
-export default function StoryNarrationButton({ uri }: Props) {
+export default function StoryNarrationButton(props: Props) {
   const [attempt, setAttempt] = useState(0);
 
   return (
-    <NarrationControl key={attempt} uri={uri} onRetry={() => setAttempt((value) => value + 1)} />
+    <NarrationControl key={attempt} {...props} onRetry={() => setAttempt((value) => value + 1)} />
   );
 }
 
 function NarrationControl({
   uri,
+  autoStart = false,
+  onFinished,
   onRetry,
 }: Props & {
   onRetry: () => void;
@@ -29,6 +33,39 @@ function NarrationControl({
   const status = useAudioPlayerStatus(player);
   const [actionError, setActionError] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!autoStart || !uri || !status.isLoaded) return;
+
+    let cancelled = false;
+
+    void Promise.resolve()
+      .then(() => {
+        if (!cancelled) player.play();
+      })
+      .catch(() => {
+        if (!cancelled) setActionError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [autoStart, uri, status.isLoaded, player]);
+
+  useEffect(() => {
+    let handled = false;
+
+    const subscription = player.addListener('playbackStatusUpdate', (next) => {
+      if (next.playing) handled = false;
+
+      if (next.didJustFinish && !handled) {
+        handled = true;
+        onFinished?.();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [player, onFinished]);
 
   useFocusEffect(
     useCallback(() => {

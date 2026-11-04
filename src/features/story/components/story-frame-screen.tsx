@@ -49,6 +49,7 @@ export default function StoryFrameScreen({
 }: Props) {
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
+  const [autoReadPage, setAutoReadPage] = useState<number | null>(null);
   const page = pages[index];
   const progress = totalPages > 0 && page ? Math.min((index + 1) / totalPages, 1) : 0;
   // 다음 쪽은 글이 한 글자라도 도착해야 넘길 수 있어요.
@@ -57,6 +58,8 @@ export default function StoryFrameScreen({
   const writing = streaming && !!page && (!pages[index + 1]?.text || !page.imageUrl);
   const movePage = useCallback(
     (step: -1 | 1) => {
+      setAutoReadPage(null);
+
       setIndex((current) => {
         const next = current + step;
 
@@ -68,6 +71,15 @@ export default function StoryFrameScreen({
     },
     [pages, totalPages],
   );
+
+  const handleNarrationFinished = useCallback(() => {
+    if (vocabOpen || !canNext) return;
+
+    const nextIndex = index + 1;
+
+    setAutoReadPage(pages[nextIndex]?.ttsUrl ? nextIndex : null);
+    setIndex(nextIndex);
+  }, [vocabOpen, canNext, index, pages]);
 
   const panResponder = useMemo(
     () =>
@@ -206,14 +218,11 @@ export default function StoryFrameScreen({
         <StoryNarrationButton
           key={`${index}:${page?.ttsUrl ?? 'empty'}`}
           uri={page?.ttsUrl ?? null}
+          autoStart={autoReadPage === index}
+          onFinished={handleNarrationFinished}
         />
 
-        <GlassIconButton
-          icon="home"
-          label="메인으로"
-          onPress={onHome}
-          style={styles.home}
-        />
+        <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.home} />
       </View>
 
       {vocabOpen ? <StoryVocabSheet vocab={vocab} onClose={() => setVocabOpen(false)} /> : null}

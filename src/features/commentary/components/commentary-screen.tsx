@@ -77,6 +77,7 @@ export default function CommentaryScreen({ fairytaleId, onHome }: Props) {
             title="관계도를 불러오지 못했어요"
             sub="잠시 후 다시 시도해 주세요."
             onRetry={() => graph.refetch()}
+            onHome={handleHome}
           />
         );
       }

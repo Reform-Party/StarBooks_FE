@@ -137,7 +137,15 @@ export default function CompleteStep({ nodes, categories, placement, edges, onHo
         raised
       />
 
-      <CenterModal visible top={70} scrimColor={SCRIM} passThrough panelStyle={styles.panel}>
+      <CenterModal
+        visible
+        top={70}
+        scrimColor={SCRIM}
+        passThrough
+        // 뒤로 가기 · VoiceOver 닫기는 "메인으로" 와 같아요 (해설 모달이 열려 있으면 해설이 먼저 닫혀요)
+        onRequestClose={onHome}
+        panelStyle={styles.panel}
+      >
         <FloatStar color="yellow" size={64} />
         <Text style={[TYPE.heading, styles.message]}>
           <Text style={styles.mint}>동화 여행</Text>

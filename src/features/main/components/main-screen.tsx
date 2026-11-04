@@ -25,7 +25,12 @@ export default function MainScreen({ onStartMake }: Props) {
 
   const menu: MenuItem[] = [
     { label: '동화 만들기', tone: 'yellow', onPress: onStartMake },
-    { label: '동화 여행', tone: 'mint', reverse: true, onPress: comingSoon },
+    {
+      label: '동화 여행',
+      tone: 'mint',
+      reverse: true,
+      onPress: () => router.push('/travel'),
+    },
     { label: '동화 책장', tone: 'mint', onPress: comingSoon },
   ];
 

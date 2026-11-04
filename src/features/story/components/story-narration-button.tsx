@@ -1,6 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PAPER, STAR } from '@/constants/colors';
@@ -29,6 +29,7 @@ function NarrationControl({
 }: Props & {
   onRetry: () => void;
 }) {
+  const navigation = useNavigation();
   const player = useAudioPlayer(uri);
   const status = useAudioPlayerStatus(player);
   const [actionError, setActionError] = useState(false);
@@ -67,13 +68,15 @@ function NarrationControl({
     return () => subscription.remove();
   }, [player, onFinished]);
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        player.pause();
-      };
-    }, [player]),
-  );
+  useEffect(() => {
+    // 다른 화면으로 이동할 때 일시정지해요.
+    // 컴포넌트가 제거될 때의 정리는 useAudioPlayer가 담당해요.
+    const unsubscribe = navigation.addListener('blur', () => {
+      player.pause();
+    });
+
+    return unsubscribe;
+  }, [navigation, player]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

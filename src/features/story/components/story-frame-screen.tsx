@@ -1,11 +1,10 @@
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -68,19 +67,6 @@ export default function StoryFrameScreen({
     step: -1 | 1;
   } | null>(null);
   const turnLock = useRef(false);
-  const [showBack, setShowBack] = useState(false);
-
-  useEffect(() => {
-    let previous = false;
-    const listener = angle.addListener(({ value }) => {
-      const next = Math.abs(value) >= 90;
-      if (next !== previous) {
-        previous = next;
-        setShowBack(next);
-      }
-    });
-    return () => angle.removeListener(listener);
-  }, [angle]);
   const page = pages[index];
   const illustrationPage = turnTarget?.step === -1 ? pages[turnTarget.index] : page;
   const textPage = turnTarget?.step === 1 ? pages[turnTarget.index] : page;
@@ -113,7 +99,6 @@ export default function StoryFrameScreen({
       setTurning(true);
       setAutoReadPage(null);
 
-      setShowBack(false);
       setTurnTarget({ index: nextIndex, step });
       angle.setValue(0);
 
@@ -122,7 +107,7 @@ export default function StoryFrameScreen({
         toValue: step === 1 ? -180 : 180,
         duration: 450,
         easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: Platform.OS !== 'web',
+        useNativeDriver: false,
       }).start(({ finished }) => {
         if (!finished) return;
 
@@ -131,7 +116,7 @@ export default function StoryFrameScreen({
         turnLock.current = false;
         setAutoReadPage(continueReading && pages[nextIndex]?.ttsUrl ? nextIndex : null);
         setTurning(false);
-        angle.setValue(0);
+        // 각도는 다음 이동을 시작할 때 초기화해요. 이전 내용이 다시 보이지 않게 해요.
       });
     },
     [angle, index, pages, totalPages, vocabOpen],
@@ -214,67 +199,77 @@ export default function StoryFrameScreen({
           </View>
 
           {turnTarget ? (
-            <Animated.View
+            <View
               pointerEvents="none"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[
-                styles.turningLeaf,
-                turnTarget.step === 1 ? styles.turnFromRight : styles.turnFromLeft,
-                {
-                  transform: [
-                    { perspective: 1600 },
-                    {
-                      rotateY: angle.interpolate({
-                        inputRange: [-180, 180],
-                        outputRange: ['-180deg', '180deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
+              style={StyleSheet.absoluteFill}
             >
-              {!showBack ? (
-                <View
-                  style={[
-                    styles.turnFace,
-                    turnTarget.step === 1 ? styles.rightLeaf : styles.leftLeaf,
-                  ]}
-                >
-                  {turnTarget.step === 1 ? (
-                    <Text maxFontSizeMultiplier={1.2} style={styles.body}>
-                      {page?.text}
-                    </Text>
-                  ) : (
-                    <StoryIllustration
-                      imageUrl={page?.imageUrl ?? null}
-                      pageNumber={page?.page ?? index + 1}
-                      streaming={streaming}
-                    />
-                  )}
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.turnFace,
-                    styles.turnBack,
-                    turnTarget.step === 1 ? styles.leftLeaf : styles.rightLeaf,
-                  ]}
-                >
-                  {turnTarget.step === 1 ? (
-                    <StoryIllustration
-                      imageUrl={pages[turnTarget.index]?.imageUrl ?? null}
-                      pageNumber={pages[turnTarget.index]?.page ?? turnTarget.index + 1}
-                      streaming={streaming}
-                    />
-                  ) : (
-                    <Text maxFontSizeMultiplier={1.2} style={styles.body}>
-                      {pages[turnTarget.index]?.text}
-                    </Text>
-                  )}
-                </View>
-              )}
-            </Animated.View>
+              <Animated.View
+                style={[
+                  styles.turnFace,
+                  turnTarget.step === 1
+                    ? [styles.turnFromRight, styles.rightLeaf]
+                    : [styles.turnFromLeft, styles.leftLeaf],
+                  {
+                    transform: [
+                      { perspective: 1600 },
+                      {
+                        rotateY: angle.interpolate({
+                          inputRange: [-180, 180],
+                          outputRange: ['-180deg', '180deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                {turnTarget.step === 1 ? (
+                  <Text maxFontSizeMultiplier={1.2} style={styles.body}>
+                    {page?.text}
+                  </Text>
+                ) : (
+                  <StoryIllustration
+                    imageUrl={page?.imageUrl ?? null}
+                    pageNumber={page?.page ?? index + 1}
+                    streaming={streaming}
+                  />
+                )}
+              </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.turnFace,
+                  turnTarget.step === 1
+                    ? [styles.turnFromLeft, styles.leftLeaf]
+                    : [styles.turnFromRight, styles.rightLeaf],
+                  {
+                    transform: [
+                      { perspective: 1600 },
+                      {
+                        rotateY: angle.interpolate({
+                          inputRange: [-180, 180],
+                          outputRange:
+                            turnTarget.step === 1 ? ['0deg', '360deg'] : ['-360deg', '0deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                {turnTarget.step === 1 ? (
+                  <StoryIllustration
+                    imageUrl={pages[turnTarget.index]?.imageUrl ?? null}
+                    pageNumber={pages[turnTarget.index]?.page ?? turnTarget.index + 1}
+                    streaming={streaming}
+                  />
+                ) : (
+                  <Text maxFontSizeMultiplier={1.2} style={styles.body}>
+                    {pages[turnTarget.index]?.text}
+                  </Text>
+                )}
+              </Animated.View>
+            </View>
           ) : null}
         </View>
 
@@ -476,12 +471,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: PAPER.edge,
   },
-  turningLeaf: {
-    position: 'absolute',
-    top: 8,
-    bottom: 8,
-    zIndex: 5,
-  },
   turnFromRight: {
     left: '50%',
     right: 8,
@@ -493,14 +482,15 @@ const styles = StyleSheet.create({
     transformOrigin: 'right center',
   },
   turnFace: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    zIndex: 5,
     backgroundColor: PAPER.fill,
+    backfaceVisibility: 'hidden',
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: PAPER.edge,
-  },
-  turnBack: {
-    transform: [{ rotateY: '180deg' }],
   },
   rightLeaf: {
     paddingTop: 20,

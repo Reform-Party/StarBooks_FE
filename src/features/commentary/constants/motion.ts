@@ -17,6 +17,8 @@ export const MOTION = {
   back: 300,
   // 2단계 진입: 아래 목록이 내려가며 영역이 늘어나요
   trayHide: 350,
+  // 올바른 관계: 선 확정 그리기
+  lineDraw: 250,
   longPress: 750,
   liftScale: 1.1,
 } as const;

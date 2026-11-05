@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Category } from '@/features/commentary/api/types';
 import JellyLabel from '@/features/commentary/components/jelly-label';
@@ -10,6 +10,8 @@ import { CATEGORY_COLOR } from '@/features/commentary/utils/game-logic';
 type Props = {
   categories: Category[];
   area: Area;
+  // 2단계 진입: from 영역에서 area 로 늘어나요 (progress 0 → 1)
+  grow?: { from: Area; progress: Animated.Value };
   // 탭으로 고른 별이 있을 때 바구니를 눌러 넣기
   armed?: boolean;
   // 끌고 있는 별 아래 바구니
@@ -21,10 +23,17 @@ type Props = {
 export default function Baskets({
   categories,
   area,
+  grow,
   armed = false,
   hot = -1,
   onBasketPress,
 }: Props) {
+  const top = grow
+    ? grow.progress.interpolate({ inputRange: [0, 1], outputRange: [grow.from.top, area.top] })
+    : area.top;
+  const height = grow
+    ? grow.progress.interpolate({ inputRange: [0, 1], outputRange: [grow.from.h, area.h] })
+    : area.h;
   return categories.map((cat, i) => {
     const color = CATEGORY_COLOR[cat];
     const c = STAR[color];
@@ -39,13 +48,9 @@ export default function Baskets({
       borderWidth: hot === i ? 2 : 1,
     };
     return (
-      <View
+      <Animated.View
         key={cat}
-        style={[
-          styles.basket,
-          { left: basketX(i), top: area.top, width: BASKET_W, height: area.h },
-          frame,
-        ]}
+        style={[styles.basket, { left: basketX(i), top, width: BASKET_W, height }, frame]}
       >
         <Pressable
           disabled={!armed}
@@ -60,7 +65,7 @@ export default function Baskets({
             {cat}
           </JellyLabel>
         </View>
-      </View>
+      </Animated.View>
     );
   });
 }

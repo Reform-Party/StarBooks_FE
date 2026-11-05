@@ -147,3 +147,14 @@ export function parseMarked(text: string) {
 }
 
 export const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+
+// 점 p 에서 선분 a–b 까지 가장 가까운 거리 (3단계: 누른 자리에서 가장 가까운 관계선 고르기)
+export function distToSegment(p: Point, a: Point, b: Point) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)),
+  );
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}

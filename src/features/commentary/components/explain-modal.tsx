@@ -20,6 +20,8 @@ type Props = {
   onNext: () => void;
   // 'close': 3단계에서 선을 눌러 다시 볼 때 — 버튼이 "닫기"가 돼요
   action?: 'next' | 'close';
+  // 3단계: 선을 누르자마자 열고, 설명이 올 때까지 본문 자리에 안내를 보여줘요
+  loading?: boolean;
 };
 
 const PANEL_W = 520;
@@ -29,7 +31,14 @@ const BODY_MAX_H = 150;
 const SCRIM = 'rgba(5,6,18,0.62)';
 
 // 관계 해설 (디자인 c2-explain): 종이 카드에 "A → B" + 서버가 준 관계 설명
-export default function ExplainModal({ from, to, description, onNext, action = 'next' }: Props) {
+export default function ExplainModal({
+  from,
+  to,
+  description,
+  onNext,
+  action = 'next',
+  loading = false,
+}: Props) {
   return (
     <CenterModal
       visible
@@ -48,13 +57,19 @@ export default function ExplainModal({ from, to, description, onNext, action = '
         <JellyStar color={CATEGORY_COLOR[to.category]} size={26} />
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={[TYPE.bodyL, styles.body]}>
-          {parseMarked(description).map((seg, i) => (
-            <Text key={i} style={seg.mark ? styles.mark : undefined}>
-              {seg.text}
-            </Text>
-          ))}
-        </Text>
+        {loading ? (
+          <Text accessibilityLiveRegion="polite" style={[TYPE.caption, styles.loading]}>
+            관계를 불러오고 있어요…
+          </Text>
+        ) : (
+          <Text style={[TYPE.bodyL, styles.body]}>
+            {parseMarked(description).map((seg, i) => (
+              <Text key={i} style={seg.mark ? styles.mark : undefined}>
+                {seg.text}
+              </Text>
+            ))}
+          </Text>
+        )}
       </ScrollView>
       <JellyButton
         label={action === 'close' ? '닫기' : '다음'}
@@ -89,6 +104,7 @@ const styles = StyleSheet.create({
   scroll: { maxHeight: BODY_MAX_H, flexGrow: 0 },
   scrollContent: { alignItems: 'center' },
   body: { maxWidth: 330, color: INK[1], textAlign: 'center' },
+  loading: { color: INK[3], textAlign: 'center' },
   mark: {
     color: STAR.yellow.rim,
     textShadowColor: 'rgba(245,158,11,0.8)',

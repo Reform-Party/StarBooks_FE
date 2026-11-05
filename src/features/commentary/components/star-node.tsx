@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import {
   type AccessibilityActionEvent,
   Animated,
+  Easing,
   type StyleProp,
   StyleSheet,
   View,
@@ -12,6 +14,7 @@ import { INK, STAR, type StarColor } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import Text from '@/features/commentary/components/app-text';
 import { NODE_STAR } from '@/features/commentary/constants/board';
+import { MOTION } from '@/features/commentary/constants/motion';
 import { WRONG_TINT } from '@/features/commentary/constants/palette';
 import { usePop, usePulse } from '@/features/commentary/hooks/use-motion';
 
@@ -26,6 +29,8 @@ type Props = {
   pop?: boolean;
   // 0 → 1 → 0 으로 움직이면 별이 잠깐 붉어져요 (오답)
   tint?: Animated.Value;
+  // 값이 바뀔 때마다 별이 한 바퀴 돌아요 (3단계 별 터치)
+  spin?: number;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   // 스크린 리더의 "활성화"(VoiceOver · TalkBack 두 번 탭). 있을 때만 버튼으로 읽혀요.
@@ -45,12 +50,25 @@ export default function StarNode({
   selected = false,
   pop = false,
   tint,
+  spin = 0,
   style,
   accessibilityLabel,
   onActivate,
 }: Props) {
   const popStyle = usePop();
   const pulse = usePulse(selected);
+  const turn = useState(() => new Animated.Value(0))[0];
+  useEffect(() => {
+    if (spin === 0) return;
+    turn.setValue(0);
+    Animated.timing(turn, {
+      toValue: 1,
+      duration: MOTION.spin,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [spin, turn]);
+  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const ring = {
     borderColor: STAR[color].c300,
     width: size + 16,
@@ -77,12 +95,14 @@ export default function StarNode({
             <Animated.View style={[styles.ring, ring, pulse]} />
           </>
         ) : null}
-        <JellyStar color={color} size={size} glow />
-        {tint ? (
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: tint }]}>
-            <JellyStar size={size} tint={WRONG_TINT} />
-          </Animated.View>
-        ) : null}
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <JellyStar color={color} size={size} glow />
+          {tint ? (
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: tint }]}>
+              <JellyStar size={size} tint={WRONG_TINT} />
+            </Animated.View>
+          ) : null}
+        </Animated.View>
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {name}

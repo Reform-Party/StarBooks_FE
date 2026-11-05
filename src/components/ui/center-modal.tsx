@@ -27,6 +27,12 @@ type Props = {
   // 스크림을 눌러도 닫을지. 녹음처럼 실수로 닫히면 안 되는 모달은 false 로 두세요.
   dismissOnScrimPress?: boolean;
   panelStyle?: StyleProp<ViewStyle>;
+  // 패널 위치(캔버스 위에서부터 pt). 없으면 가운데예요.
+  top?: number;
+  // 스크림 색. 없으면 PANEL.scrim (예: 뒤 화면이 비쳐 보여야 하는 완성 화면)
+  scrimColor?: string;
+  // true 면 스크림이 터치를 막지 않아요 (예: 완성 패널이 떠 있어도 뒤의 관계선을 누르는 화면)
+  passThrough?: boolean;
   children: ReactNode;
 };
 
@@ -42,6 +48,9 @@ export default function CenterModal({
   onRequestClose,
   dismissOnScrimPress = true,
   panelStyle,
+  top,
+  scrimColor,
+  passThrough = false,
   children,
 }: Props) {
   useEffect(() => {
@@ -59,12 +68,18 @@ export default function CenterModal({
     <Animated.View
       entering={Platform.OS === 'web' ? undefined : FadeIn.duration(DURATION.modal)}
       exiting={FadeOut.duration(DURATION.menu).easing(Easing.in(Easing.ease))}
-      style={styles.scrim}
-      accessibilityViewIsModal
+      style={[
+        styles.scrim,
+        top != null && { justifyContent: 'flex-start', paddingTop: top },
+        scrimColor != null && { backgroundColor: scrimColor },
+      ]}
+      accessibilityViewIsModal={!passThrough}
       onAccessibilityEscape={onRequestClose}
+      pointerEvents={passThrough ? 'box-none' : 'auto'}
     >
       <Pressable
         accessible={false}
+        pointerEvents={passThrough ? 'none' : 'auto'}
         disabled={!onRequestClose || !dismissOnScrimPress}
         onPress={onRequestClose}
         style={StyleSheet.absoluteFill}

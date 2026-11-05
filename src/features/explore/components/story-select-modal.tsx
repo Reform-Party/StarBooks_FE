@@ -95,9 +95,9 @@ export default function StorySelectModal({
               <Text maxFontSizeMultiplier={1.2} style={[styles.cardTitle, styles.commentaryText]}>
                 동화 해설
               </Text>
-                <Text maxFontSizeMultiplier={1.2} style={styles.description}>
+              <Text maxFontSizeMultiplier={1.2} style={styles.description}>
                 {onCommentary ? '카드로 이야기를 정리해요' : '동화 해설은 준비 중이에요'}
-                </Text>
+              </Text>
             </Pressable>
           </View>
         </>

@@ -1,6 +1,19 @@
 // 동화 생성 · 동화 조회 API 타입. 백엔드 명세가 확정되면 여기서 맞춰요.
 
-export type StoryPage = { page: number; text: string; imageUrl: string | null };
+export type StoryPage = {
+  page: number;
+  text: string;
+  imageUrl: string | null;
+  sentences?: string[];
+  ttsUrl?: string | null;
+};
+
+export type StoryVocab = {
+  wordEntryId: number;
+  pageNo: number;
+  word: string;
+  meaning: string;
+};
 
 export type StoryMeta = {
   title: string;
@@ -9,7 +22,12 @@ export type StoryMeta = {
   constellationStory?: string;
 };
 
-export type Story = StoryMeta & { id: string; pages: StoryPage[] };
+export type Story = StoryMeta & {
+  id: string;
+  pages: StoryPage[];
+  authorName?: string;
+  vocab?: StoryVocab[];
+};
 
 // POST /api/stories/generate 본문
 export type GenerateRequest = {

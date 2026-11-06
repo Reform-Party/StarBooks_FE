@@ -62,6 +62,8 @@ export default function StoryRoute() {
   return (
     <StoryFrameScreen
       title={failed ? '동화를 열지 못했어요' : (saved.data?.title ?? null)}
+      authorName={saved.data?.authorName}
+      vocab={saved.data?.vocab}
       pages={saved.data?.pages ?? []}
       totalPages={saved.data?.pages.length ?? 0}
       streaming={false}

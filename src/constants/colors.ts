@@ -67,3 +67,9 @@ export const STAR: Record<StarColor, StarTone> = {
     on: '#4A0626',
   },
 };
+
+// '#RRGGBB' → 'rgba(r,g,b,a)' (별 빛 · 그림자처럼 토큰 색을 투명하게 쓸 때)
+export const withAlpha = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+};

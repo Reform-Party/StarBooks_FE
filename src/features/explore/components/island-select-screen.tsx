@@ -1,13 +1,15 @@
-import { StyleSheet, Text, View } from 'react-native';
-
+import GlassIconButton from '@/components/ui/glass-icon-button';
 import Stage from '@/components/ui/stage';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
+import { SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
 import FloatingIsland from '@/features/explore/components/floating-island';
 import { ISLANDS, type Island } from '@/features/explore/constants/islands';
+import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
+  onHome: () => void;
   onSelectIsland?: (island: Island) => void;
   storyCounts?: Partial<Record<Island['id'], number>>;
 };
@@ -28,7 +30,7 @@ const DOTS = Array.from({ length: DOT_COUNT }, (_, i) => {
   };
 });
 
-export default function IslandSelectScreen({ onSelectIsland, storyCounts }: Props) {
+export default function IslandSelectScreen({ onHome, onSelectIsland, storyCounts }: Props) {
   return (
     <Stage orientation="landscape">
       {DOTS.map((dot, i) => (
@@ -56,11 +58,17 @@ export default function IslandSelectScreen({ onSelectIsland, storyCounts }: Prop
           onPress={onSelectIsland}
         />
       ))}
+      <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.homeButton} />
     </Stage>
   );
 }
 
 const styles = StyleSheet.create({
+  homeButton: {
+    position: 'absolute',
+    top: SCREEN.topBarY,
+    left: SCREEN.homeButtonX,
+  },
   dot: {
     position: 'absolute',
     width: 3,

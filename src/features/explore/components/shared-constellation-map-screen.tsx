@@ -12,7 +12,9 @@ import { SCREEN } from '@/constants/layout';
 import type { SharedStorySummary } from '@/features/explore/api/shared-stories-api';
 import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
 import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
-import { ISLANDS } from '@/features/explore/constants/islands';
+
+// 동화 여행 헤더는 기존 판타지 섬 이미지를 재사용합니다.
+const SHARED_STORIES_HEADER_IMAGE = require('@/features/explore/assets/fantasy.svg');
 
 type Props = {
   stories: SharedStorySummary[];
@@ -93,7 +95,7 @@ export default function SharedConstellationMapScreen({
       <View style={StyleSheet.absoluteFill}>
         <View pointerEvents="none" style={styles.header}>
           <Image
-            source={ISLANDS[0].source}
+            source={SHARED_STORIES_HEADER_IMAGE}
             style={styles.islandImage}
             contentFit="contain"
             accessible={false}

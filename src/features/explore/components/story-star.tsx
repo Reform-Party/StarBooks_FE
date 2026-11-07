@@ -81,7 +81,7 @@ export default function StoryStar({ story, onPress, authorName, color = 'yellow'
 
 const styles = StyleSheet.create({
   sharedTitleBox: {
-    top: 22,
+    top: 20,
     left: 9,
     right: 9,
   },
@@ -91,10 +91,10 @@ const styles = StyleSheet.create({
   },
   author: {
     width: '100%',
-    marginTop: 1,
+    marginTop: 2,
     fontFamily: FONT.sans,
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 11,
+    lineHeight: 14,
     includeFontPadding: false,
     textAlign: 'center',
   },

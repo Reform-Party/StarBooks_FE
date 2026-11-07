@@ -5,6 +5,7 @@ import IslandSelectScreen from '@/features/explore/components/island-select-scre
 export default function IslandsRoute() {
   return (
     <IslandSelectScreen
+      onHome={() => router.dismissTo('/')}
       onSelectIsland={(island) =>
         router.push({
           pathname: '/islands/[island]',

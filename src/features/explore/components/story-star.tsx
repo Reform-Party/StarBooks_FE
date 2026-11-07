@@ -1,13 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import JellyStar from '@/components/ui/jelly-star';
-import { STAR } from '@/constants/colors';
+import { STAR, type StarColor } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import type { StorySummary } from '@/features/explore/types/story';
 
 type Props = {
   story: StorySummary;
   onPress: (story: StorySummary) => void;
+  authorName?: string;
+  color?: StarColor;
 };
 
 export const STORY_STAR_SIZE = 76;
@@ -34,19 +36,21 @@ function splitTitle(title: string): string[] {
   return [words.slice(0, bestIndex).join(' '), words.slice(bestIndex).join(' ')];
 }
 
-export default function StoryStar({ story, onPress }: Props) {
+export default function StoryStar({ story, onPress, authorName, color = 'yellow' }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${story.title}, 동화 선택`}
+      accessibilityLabel={
+        authorName ? `${story.title}, ${authorName} 작가, 동화 읽기` : `${story.title}, 동화 선택`
+      }
       onPress={() => onPress(story)}
       style={({ pressed }) => [styles.root, pressed && styles.pressed]}
     >
       <View pointerEvents="none" accessible={false}>
-        <JellyStar size={72.48} color="yellow" />
+        <JellyStar size={72.48} color={color} />
       </View>
 
-      <View pointerEvents="none" style={styles.titleBox}>
+      <View pointerEvents="none" style={[styles.titleBox, authorName && styles.sharedTitleBox]}>
         {splitTitle(story.title).map((line, index) => (
           <Text
             key={index}
@@ -54,17 +58,46 @@ export default function StoryStar({ story, onPress }: Props) {
             numberOfLines={1}
             ellipsizeMode="tail"
             maxFontSizeMultiplier={1.2}
-            style={styles.title}
+            style={[styles.title, authorName && styles.sharedTitle, { color: STAR[color].on }]}
           >
             {line}
           </Text>
         ))}
+        {authorName?.trim() ? (
+          <Text
+            accessible={false}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={1.2}
+            style={[styles.author, { color: STAR[color].on }]}
+          >
+            {authorName}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  sharedTitleBox: {
+    top: 20,
+    left: 9,
+    right: 9,
+  },
+  sharedTitle: {
+    fontSize: 11,
+    lineHeight: 13,
+  },
+  author: {
+    width: '100%',
+    marginTop: 2,
+    fontFamily: FONT.sans,
+    fontSize: 11,
+    lineHeight: 14,
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
   root: {
     width: STORY_STAR_SIZE,
     height: STORY_STAR_SIZE,

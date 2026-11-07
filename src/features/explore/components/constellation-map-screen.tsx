@@ -1,18 +1,16 @@
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, FadeInLeft, FadeInRight } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Stage from '@/components/ui/stage';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
-import ConstellationEdgeHints from '@/features/explore/components/constellation-edge-hints';
 import StorySelectModal from '@/features/explore/components/story-select-modal';
-import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
-import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
+import ConstellationMapBody from '@/features/explore/components/constellation-map-body';
+import StoryStar from '@/features/explore/components/story-star';
 import type { Island } from '@/features/explore/constants/islands';
+import type { ConstellationPagination } from '@/features/explore/hooks/use-constellation-pagination';
 import type { StorySummary } from '@/features/explore/types/story';
 
 type Props = {
@@ -21,18 +19,8 @@ type Props = {
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
   onCommentary?: (story: StorySummary) => void;
-  pagination: {
-    page: number;
-    totalPages: number;
-    totalElements: number;
-    hasPrevious: boolean;
-    hasNext: boolean;
-    onPageChange: (page: number) => void;
-  };
+  pagination: ConstellationPagination;
 };
-
-const ENTER_FROM_RIGHT = FadeInRight.duration(350).easing(Easing.out(Easing.cubic));
-const ENTER_FROM_LEFT = FadeInLeft.duration(350).easing(Easing.out(Easing.cubic));
 
 export default function ConstellationMapScreen(props: Props) {
   return <ConstellationMapContent key={props.island.id} {...props} />;
@@ -46,57 +34,9 @@ function ConstellationMapContent({
   onCommentary,
   pagination,
 }: Props) {
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const [selectedStory, setSelectedStory] = useState<StorySummary | null>(null);
   const isModalOpen = selectedStory !== null;
-
-  const {
-    page: currentPage,
-    totalPages: pageCount,
-    totalElements,
-    hasPrevious,
-    hasNext,
-    onPageChange,
-  } = pagination;
-
-  // 서버가 요청한 개수보다 많이 보내도 좌표가 있는 만큼만 표시해요.
-  const visibleStories = stories.slice(0, POSITIONS.length);
-  const lastPoint = POSITIONS[visibleStories.length - 1];
-
-  const movePage = useCallback(
-    (step: -1 | 1) => {
-      if (isModalOpen) return;
-      if (step === -1 && !hasPrevious) return;
-      if (step === 1 && !hasNext) return;
-
-      const nextPage = currentPage + step;
-      if (nextPage < 0 || nextPage >= pageCount) return;
-
-      setDirection(step);
-      onPageChange(nextPage);
-    },
-    [currentPage, pageCount, hasPrevious, hasNext, onPageChange, isModalOpen],
-  );
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, gesture) =>
-          !isModalOpen &&
-          gesture.numberActiveTouches === 1 &&
-          Math.abs(gesture.dx) > 12 &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
-        onPanResponderRelease: (_, gesture) => {
-          if (Math.abs(gesture.dx) < 50 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.5) {
-            return;
-          }
-
-          movePage(gesture.dx < 0 ? 1 : -1);
-        },
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [movePage, isModalOpen],
-  );
+  const { totalElements } = pagination;
 
   return (
     <Stage orientation="landscape">
@@ -132,142 +72,16 @@ function ConstellationMapContent({
           </Text>
         </Pressable>
 
-        <View
-          pointerEvents="box-none"
-          style={StyleSheet.absoluteFill}
-          {...panResponder.panHandlers}
-        >
-          <Animated.View
-            key={currentPage}
-            pointerEvents="box-none"
-            style={StyleSheet.absoluteFill}
-            entering={
-              direction === 0 ? undefined : direction === 1 ? ENTER_FROM_RIGHT : ENTER_FROM_LEFT
-            }
-          >
-            {lastPoint ? (
-              <ConstellationEdgeHints
-                firstPoint={POSITIONS[0]}
-                lastPoint={lastPoint}
-                hasPrevious={hasPrevious}
-                hasNext={hasNext}
-              />
-            ) : null}
-
-            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-              <Svg width={SCREEN.width} height={SCREEN.height}>
-                {visibleStories.slice(1).map((story, index) => {
-                  const start = POSITIONS[index];
-                  const end = POSITIONS[index + 1];
-
-                  return (
-                    <Line
-                      key={story.id}
-                      x1={start.x}
-                      y1={start.y}
-                      x2={end.x}
-                      y2={end.y}
-                      stroke={STAR.yellow.rim}
-                      strokeWidth={3}
-                      strokeOpacity={0.22}
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-              </Svg>
-            </View>
-
-            {/* 빈 하늘에서 시작한 스와이프를 받도록 네이티브 뷰를 유지해요. */}
-            <View collapsable={false} style={styles.swipeArea} />
-
-            {visibleStories.map((story, index) => {
-              const point = POSITIONS[index];
-
-              return (
-                <View
-                  key={story.id}
-                  style={[
-                    styles.starSlot,
-                    {
-                      left: point.x - STORY_STAR_SIZE / 2,
-                      top: point.y - STORY_STAR_SIZE / 2,
-                    },
-                  ]}
-                >
-                  <StoryStar story={story} onPress={setSelectedStory} />
-                </View>
-              );
-            })}
-          </Animated.View>
-        </View>
-
-        {hasPrevious ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="이전 쪽"
-            onPress={() => movePage(-1)}
-            style={({ pressed }) => [
-              styles.pageButton,
-              styles.previousButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
-              ‹
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {hasNext ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="다음 쪽"
-            onPress={() => movePage(1)}
-            style={({ pressed }) => [
-              styles.pageButton,
-              styles.nextButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
-              ›
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {pageCount > 0 ? (
-          <View style={styles.footer}>
-            <View
-              accessible
-              accessibilityLabel={`${pageCount}쪽 중 ${currentPage + 1}쪽`}
-              style={styles.pageIndicator}
-            >
-              {Array.from({ length: pageCount }, (_, index) => (
-                <View
-                  key={index}
-                  style={[styles.pageDot, index === currentPage && styles.activePageDot]}
-                />
-              ))}
-              <Text maxFontSizeMultiplier={1.2} style={styles.pageText}>
-                {currentPage + 1} / {pageCount}
-              </Text>
-            </View>
-
-            {pageCount > 1 ? (
-              <Text maxFontSizeMultiplier={1.2} style={styles.pageHint}>
-                다른 쪽에도 내가 만든 동화가 있어요
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {stories.length === 0 ? (
-          <View style={styles.empty}>
-            <Text maxFontSizeMultiplier={1.2} style={styles.emptyText}>
-              아직 이 섬에 동화가 없어요
-            </Text>
-          </View>
-        ) : null}
+        <ConstellationMapBody
+          stories={stories}
+          pagination={pagination}
+          tone="yellow"
+          blocked={isModalOpen}
+          edgeHints
+          emptyText="아직 이 섬에 동화가 없어요"
+          pageHint="다른 쪽에도 내가 만든 동화가 있어요"
+          renderStar={(story) => <StoryStar story={story} onPress={setSelectedStory} />}
+        />
       </View>
 
       <StorySelectModal
@@ -292,74 +106,6 @@ function ConstellationMapContent({
 }
 
 const styles = StyleSheet.create({
-  swipeArea: {
-    position: 'absolute',
-    top: 160,
-    left: 0,
-    right: 0,
-    bottom: 50,
-  },
-  pageButton: {
-    position: 'absolute',
-    top: 120,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previousButton: {
-    left: SCREEN.safeX,
-  },
-  nextButton: {
-    right: SCREEN.safeX,
-  },
-  arrowText: {
-    fontFamily: FONT.sans,
-    fontSize: 26,
-    lineHeight: 30,
-    includeFontPadding: false,
-    color: INK[1],
-  },
-  footer: {
-    position: 'absolute',
-    bottom: SCREEN.safeBottom,
-    left: 100,
-    right: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  pageIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  pageDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  activePageDot: {
-    width: 18,
-    backgroundColor: STAR.yellow.c300,
-  },
-  pageText: {
-    marginLeft: 4,
-    fontFamily: FONT.sansBold,
-    fontSize: 13,
-    color: INK[1],
-  },
-  pageHint: {
-    fontFamily: FONT.sans,
-    fontSize: 11,
-    color: INK[3],
-  },
   header: {
     position: 'absolute',
     top: 6,
@@ -405,20 +151,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
-  },
-  starSlot: {
-    position: 'absolute',
-  },
-  empty: {
-    position: 'absolute',
-    top: 200,
-    left: 100,
-    right: 100,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontFamily: FONT.sans,
-    fontSize: 16,
-    color: INK[2],
   },
 });

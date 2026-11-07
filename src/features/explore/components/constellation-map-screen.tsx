@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 
@@ -13,6 +13,10 @@ import StorySelectModal from '@/features/explore/components/story-select-modal';
 import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
 import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
 import type { Island } from '@/features/explore/constants/islands';
+import {
+  useConstellationPagination,
+  type ConstellationPagination,
+} from '@/features/explore/hooks/use-constellation-pagination';
 import type { StorySummary } from '@/features/explore/types/story';
 
 type Props = {
@@ -21,14 +25,7 @@ type Props = {
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
   onCommentary?: (story: StorySummary) => void;
-  pagination: {
-    page: number;
-    totalPages: number;
-    totalElements: number;
-    hasPrevious: boolean;
-    hasNext: boolean;
-    onPageChange: (page: number) => void;
-  };
+  pagination: ConstellationPagination;
 };
 
 const ENTER_FROM_RIGHT = FadeInRight.duration(350).easing(Easing.out(Easing.cubic));
@@ -46,9 +43,9 @@ function ConstellationMapContent({
   onCommentary,
   pagination,
 }: Props) {
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const [selectedStory, setSelectedStory] = useState<StorySummary | null>(null);
   const isModalOpen = selectedStory !== null;
+  const { direction, movePage, panResponder } = useConstellationPagination(pagination, isModalOpen);
 
   const {
     page: currentPage,
@@ -56,47 +53,11 @@ function ConstellationMapContent({
     totalElements,
     hasPrevious,
     hasNext,
-    onPageChange,
   } = pagination;
 
   // 서버가 요청한 개수보다 많이 보내도 좌표가 있는 만큼만 표시해요.
   const visibleStories = stories.slice(0, POSITIONS.length);
   const lastPoint = POSITIONS[visibleStories.length - 1];
-
-  const movePage = useCallback(
-    (step: -1 | 1) => {
-      if (isModalOpen) return;
-      if (step === -1 && !hasPrevious) return;
-      if (step === 1 && !hasNext) return;
-
-      const nextPage = currentPage + step;
-      if (nextPage < 0 || nextPage >= pageCount) return;
-
-      setDirection(step);
-      onPageChange(nextPage);
-    },
-    [currentPage, pageCount, hasPrevious, hasNext, onPageChange, isModalOpen],
-  );
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, gesture) =>
-          !isModalOpen &&
-          gesture.numberActiveTouches === 1 &&
-          Math.abs(gesture.dx) > 12 &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
-        onPanResponderRelease: (_, gesture) => {
-          if (Math.abs(gesture.dx) < 50 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.5) {
-            return;
-          }
-
-          movePage(gesture.dx < 0 ? 1 : -1);
-        },
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [movePage, isModalOpen],
-  );
 
   return (
     <Stage orientation="landscape">

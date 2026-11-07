@@ -1,6 +1,5 @@
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 
@@ -12,6 +11,10 @@ import { SCREEN } from '@/constants/layout';
 import type { SharedStorySummary } from '@/features/explore/api/shared-stories-api';
 import StoryStar, { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
 import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
+import {
+  useConstellationPagination,
+  type ConstellationPagination,
+} from '@/features/explore/hooks/use-constellation-pagination';
 
 // 동화 여행 헤더는 기존 판타지 섬 이미지를 재사용합니다.
 const SHARED_STORIES_HEADER_IMAGE = require('@/features/explore/assets/fantasy.svg');
@@ -21,14 +24,7 @@ type Props = {
   onHome: () => void;
   onSelectStory: (story: SharedStorySummary) => void;
   busy?: boolean;
-  pagination: {
-    page: number;
-    totalPages: number;
-    totalElements: number;
-    hasPrevious: boolean;
-    hasNext: boolean;
-    onPageChange: (page: number) => void;
-  };
+  pagination: ConstellationPagination;
 };
 
 const ENTER_FROM_RIGHT = FadeInRight.duration(350).easing(Easing.out(Easing.cubic));
@@ -41,7 +37,7 @@ export default function SharedConstellationMapScreen({
   pagination,
   busy = false,
 }: Props) {
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  const { direction, movePage, panResponder } = useConstellationPagination(pagination, busy);
 
   const {
     page: currentPage,
@@ -49,46 +45,10 @@ export default function SharedConstellationMapScreen({
     totalElements,
     hasPrevious,
     hasNext,
-    onPageChange,
   } = pagination;
 
   // 서버가 요청한 개수보다 많이 보내도 좌표가 있는 만큼만 표시해요.
   const visibleStories = stories.slice(0, POSITIONS.length);
-
-  const movePage = useCallback(
-    (step: -1 | 1) => {
-      if (busy) return;
-      if (step === -1 && !hasPrevious) return;
-      if (step === 1 && !hasNext) return;
-
-      const nextPage = currentPage + step;
-      if (nextPage < 0 || nextPage >= pageCount) return;
-
-      setDirection(step);
-      onPageChange(nextPage);
-    },
-    [currentPage, pageCount, hasPrevious, hasNext, onPageChange, busy],
-  );
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, gesture) =>
-          !busy &&
-          gesture.numberActiveTouches === 1 &&
-          Math.abs(gesture.dx) > 12 &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
-        onPanResponderRelease: (_, gesture) => {
-          if (Math.abs(gesture.dx) < 50 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.5) {
-            return;
-          }
-
-          movePage(gesture.dx < 0 ? 1 : -1);
-        },
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [movePage, busy],
-  );
 
   return (
     <Stage orientation="landscape">
@@ -349,7 +309,11 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     color: INK[3],
   },
-  homeButton: { position: 'absolute', top: SCREEN.topBarY, left: SCREEN.homeButtonX },
+  homeButton: {
+    position: 'absolute',
+    top: SCREEN.topBarY,
+    left: SCREEN.homeButtonX,
+  },
   pressed: {
     opacity: 0.7,
   },

@@ -40,7 +40,14 @@
           "initialOrientation": "DEFAULT"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "프로필 사진을 고르려면 사진 보관함에 접근해야 해요.",
+          "cameraPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

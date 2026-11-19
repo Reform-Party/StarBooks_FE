@@ -8,6 +8,7 @@ import Icon from '@/components/ui/icon';
 import JellyButton from '@/components/ui/jelly-button';
 import Panel from '@/components/ui/panel';
 import Stage from '@/components/ui/stage';
+import Toast from '@/components/ui/toast';
 import { STAR } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
 import type { Gender, User } from '@/features/auth/api/types';
@@ -18,6 +19,8 @@ import SoundToggle from '@/features/settings/components/sound-toggle';
 import VoiceRecordModal from '@/features/settings/components/voice-record-modal';
 import { usePickProfilePhoto } from '@/features/settings/hooks/use-pick-profile-photo';
 import { useSettingsStore } from '@/features/settings/store/settings-store';
+import { deleteProfilePhoto, profilePhotoUri } from '@/features/settings/utils/profile-photo-file';
+import { useToast } from '@/hooks/use-toast';
 
 const GENDER_OPTIONS: readonly SelectOption<Gender>[] = [
   { label: '여자', value: 'W' },
@@ -45,6 +48,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   const setBgm = useSettingsStore((s) => s.setBgm);
   const updateProfile = useSettingsStore((s) => s.updateProfile);
   const pickPhoto = usePickProfilePhoto();
+  const { toast, show } = useToast();
 
   const [modal, setModal] = useState<Modal>(null);
   // 성별 · 나이 목록은 한 번에 하나만 펼쳐요.
@@ -52,11 +56,18 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
 
   const gender = profile?.gender ?? user.gender;
   const age = profile?.age ?? user.age;
-  const photoUri = profile?.photoUri ?? null;
+  const photoFile = profile?.photoFile ?? null;
+  const photoUri = photoFile ? profilePhotoUri(photoFile) : null;
   const ageOptions = ageOptionsWith(age);
 
+  // 새 사진으로 바꾸거나 기본 프로필로 돌리면 예전 사진 파일은 지워요.
+  const replacePhoto = (next: string | null) => {
+    if (photoFile) deleteProfilePhoto(photoFile);
+    updateProfile(user.id, { photoFile: next });
+  };
+
   const handleDefaultPhoto = () => {
-    updateProfile(user.id, { photoUri: null });
+    replacePhoto(null);
     setModal(null);
   };
 
@@ -64,8 +75,9 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
     // 앨범이 모달 위로 떠요. 고르고 돌아오면 모달 없이 바뀐 사진을 보여줘요.
     setModal(null);
     const result = await pickPhoto();
-    if (result.status === 'picked') updateProfile(user.id, { photoUri: result.uri });
+    if (result.status === 'picked') replacePhoto(result.fileName);
     else if (result.status === 'denied') setModal('photoDenied');
+    else if (result.status === 'failed') show('사진을 가져오지 못했어요. 다시 골라 주세요');
   };
 
   return (
@@ -151,6 +163,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
         message="기기 설정에서 사진 접근을 허용해 주세요"
         onAction={() => setModal(null)}
       />
+      <Toast toast={toast} top={300} />
     </Stage>
   );
 }

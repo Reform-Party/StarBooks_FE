@@ -9,8 +9,9 @@ import type { Gender } from '@/features/auth/api/types';
 export type ProfileOverride = {
   gender?: Gender;
   age?: number;
-  // 앨범에서 고른 사진. null 이면 기본 프로필로 바꾼 거예요.
-  photoUri?: string | null;
+  // 앨범에서 고른 사진의 문서 폴더 속 파일 이름. null 이면 기본 프로필로 바꾼 거예요.
+  // 앱 업데이트로 컨테이너 경로가 바뀔 수 있어 절대 경로 대신 이름만 저장해요.
+  photoFile?: string | null;
 };
 
 type SettingsState = {

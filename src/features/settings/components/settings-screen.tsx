@@ -12,12 +12,14 @@ import Toast from '@/components/ui/toast';
 import { STAR } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
 import type { Gender, User } from '@/features/auth/api/types';
+import { PROFILE_AGE_MAX, PROFILE_AGE_MIN } from '@/features/settings/api/types';
 import ProfileHeader from '@/features/settings/components/profile-header';
 import ProfilePhotoModal from '@/features/settings/components/profile-photo-modal';
 import SelectPill, { type SelectOption } from '@/features/settings/components/select-pill';
 import SoundToggle from '@/features/settings/components/sound-toggle';
 import VoiceRecordModal from '@/features/settings/components/voice-record-modal';
 import { usePickProfilePhoto } from '@/features/settings/hooks/use-pick-profile-photo';
+import { useProfile, useUpdateProfile } from '@/features/settings/hooks/use-profile';
 import { useSettingsStore } from '@/features/settings/store/settings-store';
 import { deleteProfilePhoto, profilePhotoUri } from '@/features/settings/utils/profile-photo-file';
 import { useToast } from '@/hooks/use-toast';
@@ -26,8 +28,6 @@ const GENDER_OPTIONS: readonly SelectOption<Gender>[] = [
   { label: '여자', value: 'W' },
   { label: '남자', value: 'M' },
 ];
-const AGE_MIN = 1;
-const AGE_MAX = 13;
 // 목소리 등록 때 아이가 따라 읽을 문장 (Figma 목소리 등록 · 기본)
 const VOICE_SENTENCE = '옛날 옛적에 꼬마 동화구연가가 살았어요.';
 
@@ -39,31 +39,35 @@ type Props = {
 };
 
 // 기본 · 설정 (Figma design › ④ 설정): 프로필 · 성별 / 나이 · 목소리 등록 · 효과음 · 배경음악
-// 고르면 바로 기기에 저장해요. (서버 저장은 API 가 생기면 연결)
+// 성별 · 나이는 서버 마이페이지에, 프로필 사진 · 효과음 · 배경음악은 기기에 저장해요.
 export default function SettingsScreen({ user, onSignOut }: Props) {
-  const profile = useSettingsStore((s) => s.profiles[user.id]);
+  const localProfile = useSettingsStore((s) => s.profiles[user.id]);
   const sfx = useSettingsStore((s) => s.sfx);
   const bgm = useSettingsStore((s) => s.bgm);
   const setSfx = useSettingsStore((s) => s.setSfx);
   const setBgm = useSettingsStore((s) => s.setBgm);
-  const updateProfile = useSettingsStore((s) => s.updateProfile);
+  const setPhotoFile = useSettingsStore((s) => s.setPhotoFile);
   const pickPhoto = usePickProfilePhoto();
   const { toast, show } = useToast();
+  const { data: profile } = useProfile();
+  const { mutate: saveProfile } = useUpdateProfile({ onError: (e) => show(e.message) });
 
   const [modal, setModal] = useState<Modal>(null);
   // 성별 · 나이 목록은 한 번에 하나만 펼쳐요.
   const [openSelect, setOpenSelect] = useState<'gender' | 'age' | null>(null);
 
+  // 서버 값을 받기 전에는 로그인 때 받은 값으로 보여줘요.
+  const nickname = profile?.nickname ?? user.nickname;
   const gender = profile?.gender ?? user.gender;
   const age = profile?.age ?? user.age;
-  const photoFile = profile?.photoFile ?? null;
+  const photoFile = localProfile?.photoFile ?? null;
   const photoUri = photoFile ? profilePhotoUri(photoFile) : null;
   const ageOptions = ageOptionsWith(age);
 
   // 새 사진으로 바꾸거나 기본 프로필로 돌리면 예전 사진 파일은 지워요.
   const replacePhoto = (next: string | null) => {
     if (photoFile) deleteProfilePhoto(photoFile);
-    updateProfile(user.id, { photoFile: next });
+    setPhotoFile(user.id, next);
   };
 
   const handleDefaultPhoto = () => {
@@ -89,7 +93,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
       >
         <Panel style={styles.panel}>
           <ProfileHeader
-            nickname={user.nickname}
+            nickname={nickname}
             photoUri={photoUri}
             onPressChangePhoto={() => setModal('photo')}
           />
@@ -98,7 +102,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
               label="성별"
               value={gender}
               options={GENDER_OPTIONS}
-              onChange={(next) => updateProfile(user.id, { gender: next })}
+              onChange={(next) => saveProfile({ gender: next, age })}
               width={126}
               open={openSelect === 'gender'}
               onOpenChange={(open) => setOpenSelect(open ? 'gender' : null)}
@@ -107,7 +111,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
               label="나이"
               value={age}
               options={ageOptions}
-              onChange={(next) => updateProfile(user.id, { age: next })}
+              onChange={(next) => saveProfile({ gender, age: next })}
               width={164}
               open={openSelect === 'age'}
               onOpenChange={(open) => setOpenSelect(open ? 'age' : null)}
@@ -168,9 +172,12 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   );
 }
 
-// 가입 때 적은 나이가 범위 밖이어도 목록에서 고른 값이 보이게 넣어요.
+// 서버가 받는 나이(1~10)만 고를 수 있어요. 지금 값이 범위 밖이어도 목록에서 보이게 넣어요.
 function ageOptionsWith(current: number): SelectOption<number>[] {
-  const ages = Array.from({ length: AGE_MAX - AGE_MIN + 1 }, (_, i) => AGE_MIN + i);
+  const ages = Array.from(
+    { length: PROFILE_AGE_MAX - PROFILE_AGE_MIN + 1 },
+    (_, i) => PROFILE_AGE_MIN + i,
+  );
   if (!ages.includes(current)) ages.push(current);
   return ages.sort((a, b) => a - b).map((value) => ({ label: `${value}살`, value }));
 }

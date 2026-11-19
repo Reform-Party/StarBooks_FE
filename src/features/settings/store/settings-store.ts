@@ -2,13 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { Gender } from '@/features/auth/api/types';
-
-// 서버에 저장하기 전까지 계정마다 기기에 덮어써 두는 프로필 값.
-// API 가 연결되면 성별 · 나이 · 사진은 서버 값으로 옮기고 여기서는 뺄 거예요.
-export type ProfileOverride = {
-  gender?: Gender;
-  age?: number;
+// 서버에 필드가 없어서 계정마다 기기에 두는 프로필 값. (성별 · 나이는 서버 마이페이지 API 에 저장해요)
+export type LocalProfile = {
   // 앨범에서 고른 사진의 문서 폴더 속 파일 이름. null 이면 기본 프로필로 바꾼 거예요.
   // 앱 업데이트로 컨테이너 경로가 바뀔 수 있어 절대 경로 대신 이름만 저장해요.
   photoFile?: string | null;
@@ -18,11 +13,24 @@ type SettingsState = {
   // 효과음 · 배경음악은 계정이 아니라 기기 설정이에요.
   sfx: boolean;
   bgm: boolean;
-  profiles: Record<string, ProfileOverride>;
+  profiles: Record<string, LocalProfile>;
   setSfx: (on: boolean) => void;
   setBgm: (on: boolean) => void;
-  updateProfile: (userId: string, patch: ProfileOverride) => void;
+  setPhotoFile: (userId: string, photoFile: string | null) => void;
 };
+
+type PersistedSettings = Pick<SettingsState, 'sfx' | 'bgm' | 'profiles'>;
+
+// v0 은 성별 · 나이도 기기에 덮어썼어요. 서버 값을 가리지 않게 사진만 남겨요.
+function migrate(persisted: unknown, version: number): PersistedSettings {
+  const state = persisted as PersistedSettings;
+  if (version >= 1) return state;
+  const profiles: Record<string, LocalProfile> = {};
+  for (const [userId, p] of Object.entries(state.profiles ?? {})) {
+    if (p.photoFile !== undefined) profiles[userId] = { photoFile: p.photoFile };
+  }
+  return { ...state, profiles };
+}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -32,13 +40,15 @@ export const useSettingsStore = create<SettingsState>()(
       profiles: {},
       setSfx: (sfx) => set({ sfx }),
       setBgm: (bgm) => set({ bgm }),
-      updateProfile: (userId, patch) =>
+      setPhotoFile: (userId, photoFile) =>
         set((s) => ({
-          profiles: { ...s.profiles, [userId]: { ...s.profiles[userId], ...patch } },
+          profiles: { ...s.profiles, [userId]: { ...s.profiles[userId], photoFile } },
         })),
     }),
     {
       name: 'settings',
+      version: 1,
+      migrate,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ sfx, bgm, profiles }) => ({ sfx, bgm, profiles }),
     },

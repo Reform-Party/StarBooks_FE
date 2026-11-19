@@ -14,13 +14,14 @@ type Props = {
   island: Island;
   onBack: () => void;
   onSelectStory: (story: StorySummary) => void;
+  onCommentary: (story: StorySummary) => void;
 };
 
 export default function MyConstellationScreen(props: Props) {
   return <MyConstellationContent key={props.island.id} {...props} />;
 }
 
-function MyConstellationContent({ island, onBack, onSelectStory }: Props) {
+function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }: Props) {
   const [page, setPage] = useState(0);
 
   const query = useMyStories(island.id, page);
@@ -78,6 +79,7 @@ function MyConstellationContent({ island, onBack, onSelectStory }: Props) {
       stories={result.stories}
       onBack={onBack}
       onSelectStory={onSelectStory}
+      onCommentary={onCommentary}
       pagination={{
         page: result.page,
         totalPages: result.totalPages,

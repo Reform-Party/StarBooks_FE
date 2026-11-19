@@ -86,6 +86,7 @@ function ConstellationMapContent({
 
       <StorySelectModal
         story={selectedStory}
+        authorName={selectedStory?.authorName}
         islandName={island.name}
         onClose={() => setSelectedStory(null)}
         onRead={(story) => {

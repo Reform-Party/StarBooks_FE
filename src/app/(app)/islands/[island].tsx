@@ -27,6 +27,12 @@ export default function IslandConstellationRoute() {
       key={island.id}
       island={island}
       onBack={handleBack}
+      onCommentary={(story) =>
+        router.push({
+          pathname: '/commentary/[fairytaleId]',
+          params: { fairytaleId: story.id },
+        })
+      }
       onSelectStory={(story) =>
         router.push({
           pathname: '/story/[id]',

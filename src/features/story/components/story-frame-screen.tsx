@@ -23,6 +23,7 @@ import { FONT } from '@/constants/fonts';
 import { RADIUS, SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
+import PageTurnSound from '@/features/story/components/page-turn-sound';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
 
@@ -38,9 +39,12 @@ type Props = {
   streaming: boolean;
   // 불러오기 · 생성 실패 문구
   error: string | null;
-  // 생성 중 실패했을 때만 "다시 만들기" 를 보여 줘요.
+  // 생성 또는 조회 실패 시 호출하는 재시도 동작입니다.
   onRetry?: () => void;
+  retryLabel?: string;
+  retrying?: boolean;
   onHome: () => void;
+  onCommentary?: () => void;
 };
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.
@@ -55,8 +59,12 @@ export default function StoryFrameScreen({
   streaming,
   error,
   onRetry,
+  retryLabel = '다시 만들기',
+  retrying = false,
   onHome,
+  onCommentary,
 }: Props) {
+  const [activeSentence, setActiveSentence] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
   const [autoReadPage, setAutoReadPage] = useState<number | null>(null);
@@ -70,6 +78,25 @@ export default function StoryFrameScreen({
   const page = pages[index];
   const illustrationPage = turnTarget?.step === -1 ? pages[turnTarget.index] : page;
   const textPage = turnTarget?.step === 1 ? pages[turnTarget.index] : page;
+  const sentences = useMemo(() => page?.sentences ?? [page?.text ?? ''], [page]);
+  const handleNarrationProgress = useCallback(
+    (time: number, duration: number, playing: boolean) => {
+      if (!playing || duration <= 0) {
+        setActiveSentence(null);
+        return;
+      }
+      // Temporary alignment until the API provides sentence timestamps.
+      const totalLength = sentences.reduce((sum, sentence) => sum + sentence.length, 0);
+      const position = Math.min(time / duration, 1) * totalLength;
+      let end = 0;
+      const active = sentences.findIndex((sentence) => {
+        end += sentence.length;
+        return position < end;
+      });
+      setActiveSentence(active < 0 ? null : active);
+    },
+    [sentences],
+  );
   const progress = totalPages > 0 && page ? Math.min((index + 1) / totalPages, 1) : 0;
   // 다음 쪽은 글이 한 글자라도 도착해야 넘길 수 있어요.
   const hasNext = index < totalPages - 1;
@@ -97,6 +124,7 @@ export default function StoryFrameScreen({
 
       turnLock.current = true;
       setTurning(true);
+      setActiveSentence(null);
       setAutoReadPage(null);
 
       setTurnTarget({ index: nextIndex, step });
@@ -151,6 +179,7 @@ export default function StoryFrameScreen({
 
   return (
     <Stage>
+      {turning ? <PageTurnSound /> : null}
       <View
         style={StyleSheet.absoluteFill}
         pointerEvents={vocabOpen || turning ? 'none' : 'auto'}
@@ -189,7 +218,17 @@ export default function StoryFrameScreen({
           <View style={[styles.leaf, styles.rightLeaf]}>
             <ScrollView key={textPage?.page ?? index} style={styles.bodyScroll}>
               <Text selectable style={styles.body}>
-                {textPage?.text}
+                {turning
+                  ? textPage?.text
+                  : sentences.map((sentence, sentenceIndex) => (
+                      <Text
+                        key={sentenceIndex}
+                        style={sentenceIndex === activeSentence ? styles.highlight : undefined}
+                      >
+                        {sentence}
+                        {sentenceIndex < sentences.length - 1 ? '\n' : ''}
+                      </Text>
+                    ))}
                 {writing && !turning ? <Text style={styles.caret}> ▍</Text> : null}
               </Text>
             </ScrollView>
@@ -315,7 +354,7 @@ export default function StoryFrameScreen({
 
         {onRetry ? (
           <View style={styles.retryButton}>
-            <JellyButton label="다시 만들기" height={36} onPress={onRetry} />
+            <JellyButton label={retryLabel} height={36} onPress={onRetry} disabled={retrying} />
           </View>
         ) : null}
         <View
@@ -344,9 +383,18 @@ export default function StoryFrameScreen({
             uri={page?.ttsUrl ?? null}
             autoStart={autoReadPage === index}
             onFinished={handleNarrationFinished}
+            onProgress={handleNarrationProgress}
           />
         ) : null}
 
+        {onCommentary && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
+          <JellyButton
+            label="관계도 보러 가기"
+            height={36}
+            onPress={onCommentary}
+            style={styles.commentaryButton}
+          />
+        ) : null}
         <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.home} />
       </View>
 
@@ -379,6 +427,16 @@ function StoryIllustration({
   }
 
   const waiting = streaming && !imageUrl;
+  if (!waiting) {
+    return (
+      <Image
+        source={require('@/../assets/images/night-sky.webp')}
+        accessibilityLabel="기본 밤하늘 그림"
+        style={styles.illustration}
+        contentFit="cover"
+      />
+    );
+  }
 
   return (
     <View style={styles.skeleton}>
@@ -417,6 +475,8 @@ const styles = StyleSheet.create({
     top: SCREEN.topBarY,
     left: SCREEN.homeButtonX - 104,
   },
+  highlight: { backgroundColor: '#FDE68A' },
+  commentaryButton: { position: 'absolute', right: 104, bottom: 12 },
   header: {
     position: 'absolute',
     top: 14,

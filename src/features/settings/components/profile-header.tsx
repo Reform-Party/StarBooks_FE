@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
@@ -20,11 +21,19 @@ type Props = {
 // 설정 카드 위쪽: 프로필 사진 + 카메라 버튼 + "하늘 작가님"
 export default function ProfileHeader({ nickname, photoUri, onPressChangePhoto }: Props) {
   const purple = STAR.purple;
+  // 사진 파일을 못 읽으면 빈 원 대신 기본 프로필을 보여줘요. 새 사진을 고르면 다시 그려요.
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const showPhoto = !!photoUri && photoUri !== failedUri;
   return (
     <View style={styles.header}>
       <View style={styles.avatar}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
+        {showPhoto ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={styles.photo}
+            contentFit="cover"
+            onError={() => setFailedUri(photoUri)}
+          />
         ) : (
           <>
             <Svg width={AVATAR} height={AVATAR}>

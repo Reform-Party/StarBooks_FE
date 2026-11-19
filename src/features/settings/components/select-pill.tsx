@@ -9,6 +9,7 @@ import { GLASS, INK, PANEL } from '@/constants/colors';
 import { RADIUS } from '@/constants/layout';
 import { DURATION } from '@/constants/motion';
 import { TYPE } from '@/constants/typography';
+import { useStageScale } from '@/hooks/use-stage-scale';
 
 const HEIGHT = 40;
 const ROW = 40;
@@ -44,6 +45,8 @@ export default function SelectPill<T extends string | number>({
   onOpenChange,
 }: Props<T>) {
   const rootRef = useRef<View>(null);
+  // Modal 은 Stage 캔버스 밖이라, 캔버스 배율만큼 직접 키워서 알약 아래에 맞춰요.
+  const scale = useStageScale();
   // 알약의 화면 좌표. 열 때마다 다시 재요.
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   // 부모가 open 을 직접 넣어도 위치를 잰 뒤에만 펼친 걸로 보여요.
@@ -109,7 +112,15 @@ export default function SelectPill<T extends string | number>({
             entering={FadeIn.duration(DURATION.menu)}
             exiting={FadeOut.duration(DURATION.menu)}
             onAccessibilityEscape={handleClose}
-            style={[styles.menu, { left: anchor.x, top: anchor.y + HEIGHT + 6, width }]}
+            style={[
+              styles.menu,
+              {
+                left: anchor.x,
+                top: anchor.y + (HEIGHT + 6) * scale,
+                width,
+                transform: [{ scale }],
+              },
+            ]}
           >
             <FlatList
               data={options}
@@ -162,6 +173,7 @@ const styles = StyleSheet.create({
   value: { flex: 1, color: INK[1] },
   menu: {
     position: 'absolute',
+    transformOrigin: 'top left',
     maxHeight: ROW * MAX_ROWS + (MENU_PADDING + MENU_BORDER) * 2,
     padding: MENU_PADDING,
     borderRadius: RADIUS.card,

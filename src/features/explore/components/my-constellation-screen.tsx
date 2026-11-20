@@ -34,7 +34,7 @@ function MyConstellationContent({ island, onBack, onSelectStory }: Props) {
       : '동화 목록을 불러오지 못했어요';
 
     return (
-      <Stage orientation="landscape">
+      <Stage>
         <View style={styles.status}>
           <Text maxFontSizeMultiplier={1.2} style={styles.heading}>
             {island.name}

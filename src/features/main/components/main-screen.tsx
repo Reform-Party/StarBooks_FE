@@ -58,7 +58,8 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 76,
+    // 버튼 폭 140 + 56 = 별 중심 간격 196 (Figma design)
+    gap: 56,
   },
   settings: { position: 'absolute', top: SCREEN.topBarY, left: SCREEN.homeButtonX },
 });

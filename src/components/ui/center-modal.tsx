@@ -14,6 +14,10 @@ import { PANEL } from '@/constants/colors';
 import { DURATION, SPRING_EASING } from '@/constants/motion';
 
 // 열 때: 스크림 + 모달 팝 0.3s / 닫을 때: 0.2s ease-in
+// 캔버스(874 × 402)가 화면 비율과 다르면 양옆 · 위아래에 밤하늘 여백이 남아요.
+// 스크림을 캔버스 밖으로 넉넉히 넓혀 여백까지 덮어요. (넘치는 부분은 Stage 가 잘라요)
+const SCRIM_BLEED = 1000;
+
 const POP_IN = new Keyframe({
   0: { opacity: 0, transform: [{ scale: 0.9 }] },
   100: { opacity: 1, transform: [{ scale: 1 }], easing: SPRING_EASING },
@@ -68,21 +72,17 @@ export default function CenterModal({
     <Animated.View
       entering={Platform.OS === 'web' ? undefined : FadeIn.duration(DURATION.modal)}
       exiting={FadeOut.duration(DURATION.menu).easing(Easing.in(Easing.ease))}
-      style={[
-        styles.scrim,
-        top != null && { justifyContent: 'flex-start', paddingTop: top },
-        scrimColor != null && { backgroundColor: scrimColor },
-      ]}
+      style={[styles.scrim, top != null && { justifyContent: 'flex-start', paddingTop: top }]}
       accessibilityViewIsModal={!passThrough}
       onAccessibilityEscape={onRequestClose}
-      pointerEvents={passThrough ? 'box-none' : 'auto'}
+      pointerEvents="box-none"
     >
       <Pressable
         accessible={false}
         pointerEvents={passThrough ? 'none' : 'auto'}
         disabled={!onRequestClose || !dismissOnScrimPress}
         onPress={onRequestClose}
-        style={StyleSheet.absoluteFill}
+        style={[styles.backdrop, scrimColor != null && { backgroundColor: scrimColor }]}
       />
       <Animated.View entering={Platform.OS === 'web' ? undefined : POP_IN}>
         <Panel style={panelStyle}>{children}</Panel>
@@ -102,6 +102,13 @@ const styles = StyleSheet.create({
     zIndex: 100,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: -SCRIM_BLEED,
+    right: -SCRIM_BLEED,
+    bottom: -SCRIM_BLEED,
+    left: -SCRIM_BLEED,
     backgroundColor: PANEL.scrim,
   },
 });

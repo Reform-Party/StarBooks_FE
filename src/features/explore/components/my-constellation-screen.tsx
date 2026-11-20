@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Stage from '@/components/ui/stage';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import ConstellationMapScreen from '@/features/explore/components/constellation-map-screen';
 import type { Island } from '@/features/explore/constants/islands';
+import { EMPTY_PAGINATION } from '@/features/explore/constants/empty-pagination';
 import { useMyStories } from '@/features/explore/hooks/use-my-stories';
 import type { StorySummary } from '@/features/explore/types/story';
 import { API_URL } from '@/lib/api-client';
@@ -26,14 +27,21 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
 
   const query = useMyStories(island.id, page);
 
-  if (!API_URL || query.isPending || query.isError) {
-    const isLoading = Boolean(API_URL) && query.isPending;
-    const message = isLoading
-      ? query.fetchStatus === 'paused'
-        ? '인터넷 연결을 기다리고 있어요'
-        : '동화를 불러오고 있어요'
-      : '동화 목록을 불러오지 못했어요';
+  if (API_URL && query.isPending) {
+    return (
+      <ConstellationMapScreen
+        island={island}
+        stories={[]}
+        onBack={onBack}
+        onSelectStory={onSelectStory}
+        pagination={EMPTY_PAGINATION}
+        loading
+        paused={query.fetchStatus === 'paused'}
+      />
+    );
+  }
 
+  if (!API_URL || query.isPending || query.isError) {
     return (
       <Stage orientation="landscape">
         <View style={styles.status}>
@@ -41,10 +49,8 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
             {island.name}
           </Text>
 
-          {isLoading ? <ActivityIndicator size="large" color={STAR.yellow.rim} /> : null}
-
           <Text maxFontSizeMultiplier={1.2} style={styles.message}>
-            {message}
+            동화 목록을 불러오지 못했어요
           </Text>
 
           <View style={styles.actions}>
@@ -80,6 +86,7 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
       onBack={onBack}
       onSelectStory={onSelectStory}
       onCommentary={onCommentary}
+      busy={query.isFetching || query.isPlaceholderData || query.fetchStatus === 'paused'}
       pagination={{
         page: result.page,
         totalPages: result.totalPages,

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Stage from '@/components/ui/stage';
+import ConstellationLoading from '@/features/explore/components/constellation-loading';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
@@ -20,6 +21,9 @@ type Props = {
   onSelectStory: (story: StorySummary) => void;
   onCommentary?: (story: StorySummary) => void;
   pagination: ConstellationPagination;
+  loading?: boolean;
+  paused?: boolean;
+  busy?: boolean;
 };
 
 export default function ConstellationMapScreen(props: Props) {
@@ -33,6 +37,9 @@ function ConstellationMapContent({
   onSelectStory,
   onCommentary,
   pagination,
+  loading = false,
+  paused = false,
+  busy = false,
 }: Props) {
   const [selectedStory, setSelectedStory] = useState<StorySummary | null>(null);
   const isModalOpen = selectedStory !== null;
@@ -57,7 +64,7 @@ function ConstellationMapContent({
             {island.name}
           </Text>
           <Text maxFontSizeMultiplier={1.2} style={styles.count}>
-            내 동화 {totalElements}편
+            {loading ? ' ' : `내 동화 ${totalElements}편`}
           </Text>
         </View>
 
@@ -72,16 +79,21 @@ function ConstellationMapContent({
           </Text>
         </Pressable>
 
-        <ConstellationMapBody
-          stories={stories}
-          pagination={pagination}
-          tone="yellow"
-          blocked={isModalOpen}
-          edgeHints
-          emptyText="아직 이 섬에 동화가 없어요"
-          pageHint="다른 쪽에도 내가 만든 동화가 있어요"
-          renderStar={(story) => <StoryStar story={story} onPress={setSelectedStory} />}
-        />
+        {loading ? (
+          <ConstellationLoading tone="yellow" paused={paused} />
+        ) : (
+          <ConstellationMapBody
+            stories={stories}
+            pagination={pagination}
+            tone="yellow"
+            blocked={isModalOpen}
+            busy={busy}
+            edgeHints
+            emptyText="아직 이 섬에 동화가 없어요"
+            pageHint="다른 쪽에도 내가 만든 동화가 있어요"
+            renderStar={(story) => <StoryStar story={story} onPress={setSelectedStory} />}
+          />
+        )}
       </View>
 
       <StorySelectModal

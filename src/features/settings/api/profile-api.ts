@@ -6,15 +6,7 @@ import type {
   ProfileUpdate,
   ProfileUpdateDto,
 } from '@/features/settings/api/types';
-import {
-  API_URL,
-  ApiError,
-  authHeaders,
-  notifyUnauthorized,
-  request,
-  REQUEST_TIMEOUT_MS,
-  toApiError,
-} from '@/lib/api-client';
+import { request, REQUEST_TIMEOUT_MS } from '@/lib/api-client';
 
 const TO_API_GENDER: Record<Gender, ApiGender> = { M: 'MALE', W: 'FEMALE' };
 const FROM_API_GENDER: Record<ApiGender, Gender> = { MALE: 'M', FEMALE: 'W' };
@@ -48,28 +40,12 @@ export async function uploadVoiceSample(fileUri: string): Promise<void> {
   form.append('m4aFile', {
     uri: fileUri,
     name: 'voice.m4a',
-    type: 'audio/m4a',
+    type: 'audio/mp4',
   } as unknown as Blob);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), VOICE_UPLOAD_TIMEOUT_MS);
-  try {
-    // Content-Type 은 fetch 가 boundary 와 함께 채워요.
-    const headers = await authHeaders();
-    let res: Response;
-    try {
-      res = await fetch(`${API_URL}/api/users/voice`, {
-        method: 'POST',
-        headers,
-        body: form,
-        signal: controller.signal,
-      });
-    } catch {
-      throw new ApiError(0, 'NETWORK', '목소리를 보내지 못했어요. 잠시 후 다시 시도해 주세요');
-    }
-    if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
-    if (!res.ok) throw await toApiError(res, '목소리를 등록하지 못했어요');
-  } finally {
-    clearTimeout(timer);
-  }
+  await request<void>('/api/users/voice', {
+    method: 'POST',
+    body: form,
+    timeoutMs: VOICE_UPLOAD_TIMEOUT_MS,
+  });
 }

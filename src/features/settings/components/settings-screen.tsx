@@ -63,6 +63,17 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   const photoFile = localProfile?.photoFile ?? null;
   const photoUri = photoFile ? profilePhotoUri(photoFile) : null;
   const ageOptions = ageOptionsWith(age);
+  const ageInRange = age >= PROFILE_AGE_MIN && age <= PROFILE_AGE_MAX;
+
+  // 서버는 성별 · 나이를 함께 받아요. 나이가 범위 밖이면(가입 화면에 상한이 없어요) 나이부터 고르게 해요.
+  const handleGender = (next: Gender) => {
+    if (!ageInRange) {
+      show('나이를 먼저 골라 주세요');
+      setOpenSelect('age');
+      return;
+    }
+    saveProfile({ gender: next, age });
+  };
 
   // 새 사진으로 바꾸거나 기본 프로필로 돌리면 예전 사진 파일은 지워요.
   const replacePhoto = (next: string | null) => {
@@ -102,7 +113,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
               label="성별"
               value={gender}
               options={GENDER_OPTIONS}
-              onChange={(next) => saveProfile({ gender: next, age })}
+              onChange={handleGender}
               width={126}
               open={openSelect === 'gender'}
               onOpenChange={(open) => setOpenSelect(open ? 'gender' : null)}

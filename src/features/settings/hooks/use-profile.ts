@@ -24,6 +24,8 @@ export function useProfile() {
 export function useUpdateProfile({ onError }: { onError?: (error: Error) => void } = {}) {
   const queryClient = useQueryClient();
   return useMutation({
+    // 연달아 고르면 요청이 겹치지 않게 순서대로 보내요.
+    scope: { id: 'settings-profile' },
     mutationFn: (next: ProfileUpdate) => updateProfile(next),
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: PROFILE_KEY });

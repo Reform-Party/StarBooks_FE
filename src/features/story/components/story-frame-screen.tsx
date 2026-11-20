@@ -27,6 +27,7 @@ import type { StoryPage, StoryVocab } from '@/features/story/api/types';
 import PageTurnSound from '@/features/story/components/page-turn-sound';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
+import type { useStoryNarration } from '@/features/story/hooks/use-story-narration';
 
 const PAPER_INK_2 = '#6B6790';
 
@@ -46,6 +47,7 @@ type Props = {
   retrying?: boolean;
   onHome: () => void;
   onCommentary?: () => void;
+  narration?: ReturnType<typeof useStoryNarration>;
 };
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.
@@ -64,6 +66,7 @@ export default function StoryFrameScreen({
   retrying = false,
   onHome,
   onCommentary,
+  narration,
 }: Props) {
   const sfxOn = useSettingsStore((s) => s.sfx);
   const [activeSentence, setActiveSentence] = useState<number | null>(null);
@@ -383,6 +386,9 @@ export default function StoryFrameScreen({
           <StoryNarrationButton
             key={`${index}:${page?.ttsUrl ?? 'empty'}`}
             uri={page?.ttsUrl ?? null}
+            generationMessage={narration?.message}
+            generating={narration?.pending}
+            onGenerationRetry={narration?.onRetry}
             autoStart={autoReadPage === index}
             onFinished={handleNarrationFinished}
             onProgress={handleNarrationProgress}

@@ -77,12 +77,14 @@ type FairytaleDetailDto = {
   }[];
 };
 
-export async function fetchStory(id: string): Promise<Story> {
+export async function fetchStory(id: string, signal?: AbortSignal): Promise<Story> {
   if (!/^[1-9]\d*$/.test(id)) {
     throw new Error('동화 번호가 올바르지 않아요.');
   }
 
-  const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`);
+  const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`, {
+    signal,
+  });
 
   return {
     id: String(data.fairytaleId),

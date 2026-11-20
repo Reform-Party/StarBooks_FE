@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { isValidStoryId } from '@/features/story/api/story-api';
 import StoryFrameScreen from '@/features/story/components/story-frame-screen';
 import { useStory } from '@/features/story/hooks/use-story';
+import { useStoryNarration } from '@/features/story/hooks/use-story-narration';
 import { useGenerationStore } from '@/features/story/store/generation-store';
 
 export default function StoryRoute() {
@@ -30,14 +31,16 @@ export default function StoryRoute() {
   );
   const retry = useGenerationStore((s) => s.retry);
   const reset = useGenerationStore((s) => s.reset);
-  const saved = useStory(live || !id ? null : id);
+  const saved = useStory((live && live.status !== 'done') || !id ? null : id);
+  const narration = useStoryNarration(id && /^[1-9]\d*$/.test(id) ? id : null, saved.data);
 
   if (live) {
     const failed = live.status === 'error';
     return (
       <StoryFrameScreen
         title={live.meta?.title ?? null}
-        pages={live.pages}
+        pages={narration.pages ?? live.pages}
+        narration={narration}
         totalPages={live.totalPages}
         streaming={!failed && live.status !== 'done'}
         error={failed ? live.error : null}
@@ -73,7 +76,8 @@ export default function StoryRoute() {
       title={failed ? '동화를 열지 못했어요' : (saved.data?.title ?? null)}
       authorName={saved.data?.authorName}
       vocab={saved.data?.vocab}
-      pages={saved.data?.pages ?? []}
+      pages={narration.pages ?? saved.data?.pages ?? []}
+      narration={narration}
       totalPages={saved.data?.pages.length ?? 0}
       streaming={false}
       error={id ? (saved.error?.message ?? null) : '동화를 찾을 수 없어요'}

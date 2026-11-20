@@ -29,7 +29,7 @@ export default function SharedStoriesScreen({ onHome, onSelectStory }: Props) {
         : '동화 목록을 불러오지 못했어요';
 
     return (
-      <Stage orientation="landscape">
+      <Stage>
         <View style={styles.status}>
           <Text accessibilityRole="header" maxFontSizeMultiplier={1.2} style={styles.heading}>
             동화 여행

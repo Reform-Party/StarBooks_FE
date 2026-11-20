@@ -32,7 +32,7 @@ const DOTS = Array.from({ length: DOT_COUNT }, (_, i) => {
 
 export default function IslandSelectScreen({ onHome, onSelectIsland, storyCounts }: Props) {
   return (
-    <Stage orientation="landscape">
+    <Stage>
       {DOTS.map((dot, i) => (
         <View
           key={i}

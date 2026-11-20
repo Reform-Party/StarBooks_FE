@@ -43,8 +43,9 @@ export default function Segmented<T extends string>({ label, options, value, onC
 }
 
 const styles = StyleSheet.create({
-  field: { width: '100%', gap: 6 },
-  label: { ...TYPE.caption, fontFamily: FONT.sansSemi, color: INK[2] },
+  // Figma design: 라벨(14.5pt Bold) 아래 4pt 에 입력칸 40pt
+  field: { width: '100%', gap: 4 },
+  label: { ...TYPE.caption, fontFamily: FONT.sansSemi, lineHeight: 18, color: INK[2] },
   row: { flexDirection: 'row', gap: 6 },
   option: {
     flex: 1,

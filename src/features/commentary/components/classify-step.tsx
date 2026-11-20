@@ -60,9 +60,6 @@ type Wrong = { id: number; from: Point; to: Point };
 // 서버 판정을 기다리는 별: 놓은 자리에 흐리게 붙잡아 둬요
 type Judging = { id: number; at: Point };
 
-// 분류 끝 패널 뒤로 바구니가 비쳐 보이게 (디자인 c1-done)
-const SCRIM = 'rgba(5,6,18,0.62)';
-
 const TRAY_HOME: Point = { x: TRAY.left + TRAY.w / 2, y: TRAY.top + TRAY.h / 2 };
 
 // 1단계 · 분류하기: 트레이의 별을 끌어 알맞은 바구니에 놓아요. 정답은 드롭할 때마다 서버(/classify)가 판정해요.
@@ -309,7 +306,7 @@ export default function ClassifyStep({
       <WrongToast visible={banner.visible} title={banner.banner.title} sub={banner.banner.sub} />
 
       {done ? (
-        <CenterModal visible top={76} scrimColor={SCRIM} panelStyle={styles.donePanel}>
+        <CenterModal visible top={76} panelStyle={styles.donePanel}>
           <View style={styles.stars}>
             <FloatStar color="mint" size={40} variant="alt" />
             <FloatStar color="yellow" size={70} />

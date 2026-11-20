@@ -31,8 +31,6 @@ const PANEL_W = 420;
 const PANEL_TOP = 38;
 // 선택지는 서버가 만든 문장이라 길이를 알 수 없어요. 두 줄까지 보여주고, 그래도 넘치면 목록이 스크롤돼요.
 const CHOICES_MAX_H = 176;
-// 디자인 c2-quiz: 뒤 별자리가 비쳐 보이는 스크림
-const SCRIM = 'rgba(5,6,18,0.62)';
 
 // 관계 퀴즈 (디자인 c2-quiz): 두 별 사이가 어떤 관계인지 고르기
 export default function QuizModal({ from, to, choices, onChoose, onCorrect, onClose }: Props) {
@@ -63,7 +61,6 @@ export default function QuizModal({ from, to, choices, onChoose, onCorrect, onCl
     <CenterModal
       visible
       top={PANEL_TOP}
-      scrimColor={SCRIM}
       // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 퀴즈만 닫아요.
       // 응답 대기 중에도 핸들러는 남겨 둬야 뒤로 가기가 게임 화면까지 넘어가지 않아요.
       onRequestClose={() => {

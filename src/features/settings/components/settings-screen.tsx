@@ -18,6 +18,7 @@ import ProfilePhotoModal from '@/features/settings/components/profile-photo-moda
 import SelectPill, { type SelectOption } from '@/features/settings/components/select-pill';
 import SoundToggle from '@/features/settings/components/sound-toggle';
 import VoiceRecordModal from '@/features/settings/components/voice-record-modal';
+import { VOICE_SENTENCE_MS, VOICE_SENTENCES } from '@/features/settings/constants/voice-sentences';
 import { usePickProfilePhoto } from '@/features/settings/hooks/use-pick-profile-photo';
 import { useProfile, useUpdateProfile } from '@/features/settings/hooks/use-profile';
 import { NOISE_WARNING, useVoiceRecording } from '@/features/settings/hooks/use-voice-recording';
@@ -29,8 +30,6 @@ const GENDER_OPTIONS: readonly SelectOption<Gender>[] = [
   { label: '여자', value: 'W' },
   { label: '남자', value: 'M' },
 ];
-// 목소리 등록 때 아이가 따라 읽을 문장 (Figma 목소리 등록 · 기본)
-const VOICE_SENTENCE = '옛날 옛적에 꼬마 동화구연가가 살았어요.';
 
 type Modal = 'photo' | 'voice' | 'photoDenied' | 'micDenied' | null;
 
@@ -190,7 +189,9 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
       <VoiceRecordModal
         visible={modal === 'voice'}
         onClose={handleCloseVoice}
-        sentence={VOICE_SENTENCE}
+        sentence={
+          VOICE_SENTENCES[Math.floor(voice.elapsedMs / VOICE_SENTENCE_MS) % VOICE_SENTENCES.length]
+        }
         mode={voice.status === 'recording' ? 'live' : 'idle'}
         level={voice.level}
         warning={voice.status === 'noisy' ? NOISE_WARNING : null}

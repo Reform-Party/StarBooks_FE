@@ -10,7 +10,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import { useUploadVoiceSample } from '@/features/settings/hooks/use-profile';
 
-// Figma 목소리 등록: 약 1분 뒤 자동 저장 → 모달 닫힘
+// Figma 목소리 등록: 약 1분 뒤 자동 저장 → 모달 닫힘. 말을 시작한 때가 아니라 녹음을 시작한 때부터 재요.
 const RECORD_MS = 60_000;
 // Figma: 녹음 시작 0~0.25초에 소음 검사
 const NOISE_CHECK_MS = 250;
@@ -32,7 +32,7 @@ type Options = {
 };
 
 // 목소리 등록 녹음: 권한 → 녹음(.m4a) → 소음 검사 → 1분 뒤 자동 업로드.
-// level 은 지금 목소리 크기(0–1)라 성운 live 모드에 그대로 넘겨요.
+// level 은 지금 목소리 크기(0–1)라 성운 live 모드에 그대로 넘겨요. elapsedMs 는 녹음한 시간이에요.
 export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   const recorderState = useAudioRecorderState(recorder, METER_INTERVAL_MS);
@@ -130,5 +130,7 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
     stopRecorder().catch(() => undefined);
   };
 
-  return { status, level, start, cancel };
+  const elapsedMs = status === 'recording' ? recorderState.durationMillis : 0;
+
+  return { status, level, elapsedMs, start, cancel };
 }

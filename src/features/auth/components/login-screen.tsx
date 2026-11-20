@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, type TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, type TextInputInstance, View } from 'react-native';
 
 import BrandTitle from '@/components/ui/brand-title';
 import JellyButton from '@/components/ui/jelly-button';
@@ -28,7 +28,7 @@ export default function LoginScreen({ initialEmail = '' }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [failCount, setFailCount] = useState(0);
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
   const { toast, show } = useToast(2400);
   const login = useLogin();
 

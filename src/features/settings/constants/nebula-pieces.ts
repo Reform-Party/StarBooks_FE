@@ -2,7 +2,7 @@
 // 블러가 들어간 원본 SVG 를 WebP(@1x · @2x · @3x, 손실 q90 + 무손실 알파)로 미리 구워서, 기기에서 필터를 돌리지 않아요.
 // 좌표는 196 × 196 상자 기준이고 cx · cy 는 조각 가운데, w · h 는 블러 여백까지 포함한 그림 크기예요.
 // 배열 순서는 Figma 레이어 순서예요. 같은 unit 끼리는 한 몸으로 움직여요. (그리는 순서는 nebula.tsx 에서 정해요)
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSource } from 'expo-image';
 
 export type NebulaKind = 'halo' | 'arm' | 'ring' | 'core' | 'spark';
 
@@ -16,7 +16,7 @@ export type NebulaPiece = {
   h: number;
   opacity: number;
   sharp: boolean; // 또렷한 반짝이 (쉬는 중에 깜빡여요)
-  source: ImageSourcePropType;
+  source: ImageSource;
 };
 
 export const NEBULA_BOX = 196;

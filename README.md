@@ -6,7 +6,7 @@
 
 | 분류        | 사용 기술                                 |
 | ----------- | ----------------------------------------- |
-| Framework   | Expo SDK 57, React Native, Expo Router    |
+| Framework   | Expo SDK 58, React Native, Expo Router    |
 | Language    | TypeScript                                |
 | State       | Zustand (client), TanStack Query (server) |
 | Storage     | expo-secure-store, AsyncStorage           |

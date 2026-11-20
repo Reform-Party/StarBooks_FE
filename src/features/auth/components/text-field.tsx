@@ -1,5 +1,12 @@
 import { type Ref, useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  View,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -18,7 +25,7 @@ type Props = Omit<TextInputProps, 'style'> & {
   invalid?: boolean;
   // 값이 바뀔 때마다 좌우로 0.3s 흔들려요. (로그인 실패 횟수 등)
   shakeKey?: number;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 };
 
 const SHAKE = [-6, 6, -4, 3, 0];

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import AppText from '@/components/ui/app-text';
@@ -44,7 +44,7 @@ export default function SelectPill<T extends string | number>({
   open,
   onOpenChange,
 }: Props<T>) {
-  const rootRef = useRef<View>(null);
+  const rootRef = useRef<ViewInstance>(null);
   // Modal 은 Stage 캔버스 밖이라, 캔버스 배율만큼 직접 키워서 알약 아래에 맞춰요.
   const scale = useStageScale();
   // 알약의 화면 좌표. 열 때마다 다시 재요.

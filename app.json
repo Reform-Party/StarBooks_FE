@@ -47,7 +47,12 @@
           "photosPermission": "프로필 사진을 고르려면 사진 보관함에 접근해야 해요.",
           "cameraPermission": false
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

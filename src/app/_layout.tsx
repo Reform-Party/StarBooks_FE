@@ -41,11 +41,13 @@ export default function RootLayout() {
       <ThemeProvider value={NAV_THEME}>
         <StatusBar style="light" hidden />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          {/* 로그인 전에는 (auth), 로그인하면 (app) 만 열려요. 상태가 바뀌면 알아서 넘어가요. */}
-          <Stack.Protected guard={status === 'guest'}>
+          {/* 로그인 전에는 (auth), 로그인하면 (app) 만 열려요. 상태가 바뀌면 알아서 넘어가요.
+              막힌 경로로 들어오면 redirectTo 로 보내요. SDK 58 의 기본 fallback 은 index 가 없는 그룹(`/(auth)`)을
+              가리켜서 Unmatched Route 가 떠요. */}
+          <Stack.Protected guard={status === 'guest'} redirectTo="/">
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
-          <Stack.Protected guard={status === 'authed'}>
+          <Stack.Protected guard={status === 'authed'} redirectTo="/login">
             <Stack.Screen name="(app)" />
           </Stack.Protected>
         </Stack>

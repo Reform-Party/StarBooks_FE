@@ -1,6 +1,6 @@
 # AGENTS.md
 
-StarBooks FE는 Expo SDK 57 + React Native + Expo Router 기반 모바일 앱입니다.
+StarBooks FE는 Expo SDK 58 + React Native + Expo Router 기반 모바일 앱입니다.
 이 문서는 사람과 AI 에이전트 모두가 따르는 **작업 프로세스와 규칙**입니다.
 모바일 우선, 성능, iOS/Android 크로스 플랫폼 호환을 최우선으로 합니다.
 
@@ -174,8 +174,8 @@ src/
 
 Expo, EAS, React Native API를 다루기 전에:
 
-1. `package.json` 의 `expo` 메이저 버전을 확인합니다. (현재 57)
-2. 해당 버전 문서를 읽습니다: `https://docs.expo.dev/versions/v57.0.0/`
+1. `package.json` 의 `expo` 메이저 버전을 확인합니다. (현재 58)
+2. 해당 버전 문서를 읽습니다: `https://docs.expo.dev/versions/v58.0.0/`
 3. 그 외는 https://docs.expo.dev/llms.txt 에서 링크를 따라가 확인합니다.
 
 ### 네이티브

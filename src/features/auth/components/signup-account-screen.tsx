@@ -29,6 +29,7 @@ export default function SignupAccountScreen() {
   // 가입을 그만두면 적어 둔 비밀번호를 메모리에서 지워요.
   // 버튼 · Android 뒤로 가기 · 스와이프 모두 이 화면이 스택에서 빠질(언마운트될) 때 한 번에 처리해요.
   // 아이 정보 화면으로 넘어가도 이 화면은 스택에 남아 있어서 초안이 유지돼요.
+  // 그래서 2/2 로는 push 로만 넘어가야 해요. (replace 나 Stack 의 activityEnabled 를 쓰면 일찍 지워져요)
   useEffect(() => () => clearDraft(), [clearDraft]);
 
   const handleNext = () => {

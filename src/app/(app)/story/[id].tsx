@@ -41,6 +41,15 @@ export default function StoryRoute() {
         totalPages={live.totalPages}
         streaming={!failed && live.status !== 'done'}
         error={failed ? live.error : null}
+        onCommentary={
+          live.status === 'done' && id
+            ? () =>
+                router.push({
+                  pathname: '/commentary/[fairytaleId]',
+                  params: { fairytaleId: id },
+                })
+            : undefined
+        }
         onRetry={
           failed
             ? () => {
@@ -68,6 +77,18 @@ export default function StoryRoute() {
       totalPages={saved.data?.pages.length ?? 0}
       streaming={false}
       error={id ? (saved.error?.message ?? null) : '동화를 찾을 수 없어요'}
+      onRetry={id && saved.isError ? () => void saved.refetch() : undefined}
+      retryLabel={saved.isFetching ? '불러오는 중' : '다시 불러오기'}
+      retrying={saved.isFetching}
+      onCommentary={
+        id && saved.data
+          ? () =>
+              router.push({
+                pathname: '/commentary/[fairytaleId]',
+                params: { fairytaleId: id },
+              })
+          : undefined
+      }
       onHome={() => router.dismissTo('/')}
     />
   );

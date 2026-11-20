@@ -11,6 +11,7 @@ type Props = {
   uri: string | null;
   autoStart?: boolean;
   onFinished?: () => void;
+  onProgress?: (currentTime: number, duration: number, playing: boolean) => void;
 };
 
 export default function StoryNarrationButton(props: Props) {
@@ -25,6 +26,7 @@ function NarrationControl({
   uri,
   autoStart = false,
   onFinished,
+  onProgress,
   onRetry,
 }: Props & {
   onRetry: () => void;
@@ -57,6 +59,7 @@ function NarrationControl({
     let handled = false;
 
     const subscription = player.addListener('playbackStatusUpdate', (next) => {
+      onProgress?.(next.currentTime, next.duration, next.playing);
       if (next.playing) handled = false;
 
       if (next.didJustFinish && !handled) {
@@ -66,7 +69,7 @@ function NarrationControl({
     });
 
     return () => subscription.remove();
-  }, [player, onFinished]);
+  }, [player, onFinished, onProgress]);
 
   useEffect(() => {
     // 다른 화면으로 이동할 때 일시정지해요.

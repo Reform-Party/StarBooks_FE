@@ -75,10 +75,16 @@ type RequestOptions = {
   timeoutMs?: number;
 };
 
-export async function request<T>(
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { data } = await requestWithHeaders<T>(path, options);
+  return data;
+}
+
+// 응답 헤더도 함께 돌려줘요. (로그인 · 회원가입은 토큰을 Authorization 응답 헤더로 줘요)
+export async function requestWithHeaders<T>(
   path: string,
   { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {},
-): Promise<T> {
+): Promise<{ data: T; headers: Headers }> {
   // 부른 쪽의 취소와 타임아웃을 하나의 signal 로 묶어요.
   const controller = new AbortController();
   let timedOut = false;
@@ -126,16 +132,16 @@ export async function request<T>(
         throw new ApiError(0, timedOut ? 'TIMEOUT' : 'NETWORK', '서버 응답을 받지 못했어요');
       }
     }
-    if (!text) return undefined as T;
+    if (!text) return { data: undefined as T, headers: res.headers };
     let data: unknown;
     try {
       data = JSON.parse(text);
     } catch {
       throw new ApiError(res.status, 'BAD_RESPONSE', '서버 응답을 읽지 못했어요');
     }
-    if (!isEnvelope(data)) return data as T;
+    if (!isEnvelope(data)) return { data: data as T, headers: res.headers };
     if (!data.isSuccess) throw new ApiError(res.status, data.code, data.message);
-    return data.data as T;
+    return { data: data.data as T, headers: res.headers };
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);

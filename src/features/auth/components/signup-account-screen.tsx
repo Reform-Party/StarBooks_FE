@@ -9,17 +9,15 @@ import StepTitle from '@/features/auth/components/step-title';
 import TextField from '@/features/auth/components/text-field';
 import { useSignupDraftStore } from '@/features/auth/store/signup-draft-store';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 type Alert = { title: string; message: string };
 
-// 기본 · 회원가입 1 / 2 (Figma design): 이메일 · 비밀번호 · 비밀번호 확인 → 다음
-//  2 다음: 빈 칸 · 이메일 형식 · 비밀번호 일치를 보고, 통과하면 아이 정보 / 아니면 알림창
+// 기본 · 회원가입 1 / 2 (Figma design): 아이디 · 비밀번호 · 비밀번호 확인 → 다음
+//  2 다음: 빈 칸 · 비밀번호 일치를 보고, 통과하면 아이 정보 / 아니면 알림창
 export default function SignupAccountScreen() {
   const draft = useSignupDraftStore((s) => s.account);
   const setAccount = useSignupDraftStore((s) => s.setAccount);
   const clearDraft = useSignupDraftStore((s) => s.clear);
-  const [email, setEmail] = useState(draft?.email ?? '');
+  const [userId, setUserId] = useState(draft?.userId ?? '');
   const [password, setPassword] = useState(draft?.password ?? '');
   const [confirm, setConfirm] = useState(draft?.password ?? '');
   const [alert, setAlert] = useState<Alert | null>(null);
@@ -33,19 +31,15 @@ export default function SignupAccountScreen() {
   useEffect(() => () => clearDraft(), [clearDraft]);
 
   const handleNext = () => {
-    if (!email.trim() || !password || !confirm) {
+    if (!userId.trim() || !password || !confirm) {
       setAlert({ title: '빈 칸이 있어요', message: '모든 칸을 채워 주세요' });
-      return;
-    }
-    if (!EMAIL_RE.test(email.trim())) {
-      setAlert({ title: '이메일을 확인해 주세요', message: 'star@example.com 처럼 적어 주세요' });
       return;
     }
     if (password !== confirm) {
       setAlert({ title: '비밀번호가 달라요', message: '비밀번호 확인 칸을 다시 적어 주세요' });
       return;
     }
-    setAccount({ email: email.trim(), password });
+    setAccount({ userId: userId.trim(), password });
     router.push('/signup/kids');
   };
 
@@ -65,14 +59,14 @@ export default function SignupAccountScreen() {
       }
     >
       <TextField
-        label="이메일"
-        placeholder="haneul07@star.com"
-        value={email}
-        onChangeText={(v) => setEmail(v.trim())}
-        keyboardType="email-address"
+        label="아이디"
+        placeholder="haneul07"
+        value={userId}
+        onChangeText={(v) => setUserId(v.trim())}
         autoCapitalize="none"
-        autoComplete="email"
-        textContentType="emailAddress"
+        autoCorrect={false}
+        autoComplete="username"
+        textContentType="username"
         returnKeyType="next"
         submitBehavior="submit"
         onSubmitEditing={() => passwordRef.current?.focus()}

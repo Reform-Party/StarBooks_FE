@@ -69,13 +69,15 @@ export async function toApiError(
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  // FormData 는 그대로 보내고, 나머지는 JSON 으로 바꿔 보내요.
   body?: unknown;
   signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 export async function request<T>(
   path: string,
-  { method = 'GET', body, signal }: RequestOptions = {},
+  { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {},
 ): Promise<T> {
   // 부른 쪽의 취소와 타임아웃을 하나의 signal 로 묶어요.
   const controller = new AbortController();
@@ -83,14 +85,16 @@ export async function request<T>(
   const timer = setTimeout(() => {
     timedOut = true;
     controller.abort();
-  }, REQUEST_TIMEOUT_MS);
+  }, timeoutMs);
   const onAbort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   else signal?.addEventListener('abort', onAbort);
 
   try {
+    // FormData 의 Content-Type 은 fetch 가 boundary 와 함께 채워요.
+    const isForm = body instanceof FormData;
     const headers = await authHeaders(
-      body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body === undefined || isForm ? {} : { 'Content-Type': 'application/json' },
     );
 
     let res: Response;
@@ -99,7 +103,7 @@ export async function request<T>(
         method,
         signal: controller.signal,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       });
     } catch (e) {
       if (signal?.aborted) throw e;

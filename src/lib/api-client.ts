@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStorage from '@/lib/secure-storage';
 
 // 관계도 게임(commentary)과 같은 키를 써서 로그인 토큰을 함께 써요.
 const ACCESS_TOKEN_KEY = 'accessToken';
@@ -11,11 +11,11 @@ if (__DEV__ && !API_URL) console.warn('EXPO_PUBLIC_API_URL 이 비어 있어요.
 // 서버가 응답하지 않을 때 기다리는 시간. RN Android(OkHttp)는 기본 타임아웃이 없어요.
 export const REQUEST_TIMEOUT_MS = 10_000;
 
-export const getAccessToken = () => SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+export const getAccessToken = () => SecureStorage.getItem(ACCESS_TOKEN_KEY);
 
 export async function setAccessToken(token: string | null) {
-  if (token) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
-  else await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+  if (token) await SecureStorage.setItem(ACCESS_TOKEN_KEY, token);
+  else await SecureStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
 export class ApiError extends Error {

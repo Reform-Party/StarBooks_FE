@@ -1,5 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
-
 import {
   FROM_API_GENDER,
   type LoginBody,
@@ -10,6 +8,7 @@ import {
   type User,
 } from '@/features/auth/api/types';
 import { ApiError, request, requestWithHeaders, setAccessToken } from '@/lib/api-client';
+import * as SecureStorage from '@/lib/secure-storage';
 
 const LOGIN_PATH = '/api/auth/login';
 // 서버 경로는 sign-up 이에요. (signup 아님)
@@ -32,7 +31,7 @@ async function startSession(headers: Headers, userId: string, failMessage: strin
   if (!token) throw new ApiError(500, 'NO_TOKEN', failMessage);
 
   await setAccessToken(token);
-  await SecureStore.setItemAsync(USER_ID_KEY, userId);
+  await SecureStorage.setItem(USER_ID_KEY, userId);
   try {
     return await fetchMe();
   } catch (e) {
@@ -73,7 +72,7 @@ export const SIGNED_UP_WITHOUT_SESSION = 'SIGNED_UP_WITHOUT_SESSION';
 
 export async function fetchMe(): Promise<User> {
   const dto = await request<ProfileDto>(PROFILE_PATH);
-  const id = (await SecureStore.getItemAsync(USER_ID_KEY)) ?? '';
+  const id = (await SecureStorage.getItem(USER_ID_KEY)) ?? '';
   return {
     id,
     nickname: dto.username,
@@ -84,5 +83,5 @@ export async function fetchMe(): Promise<User> {
 
 export async function logout() {
   await setAccessToken(null);
-  await SecureStore.deleteItemAsync(USER_ID_KEY);
+  await SecureStorage.removeItem(USER_ID_KEY);
 }

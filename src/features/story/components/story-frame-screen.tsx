@@ -22,6 +22,7 @@ import { PAPER, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { RADIUS, SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
+import { useSettingsStore } from '@/features/settings/store/settings-store';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
 import PageTurnSound from '@/features/story/components/page-turn-sound';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
@@ -64,6 +65,7 @@ export default function StoryFrameScreen({
   onHome,
   onCommentary,
 }: Props) {
+  const sfxOn = useSettingsStore((s) => s.sfx);
   const [activeSentence, setActiveSentence] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
@@ -85,7 +87,7 @@ export default function StoryFrameScreen({
         setActiveSentence(null);
         return;
       }
-      // Temporary alignment until the API provides sentence timestamps.
+      // API가 문장별 타임스탬프를 제공하기 전까지 문장 길이로 강조 구간을 추정해요.
       const totalLength = sentences.reduce((sum, sentence) => sum + sentence.length, 0);
       const position = Math.min(time / duration, 1) * totalLength;
       let end = 0;
@@ -179,7 +181,7 @@ export default function StoryFrameScreen({
 
   return (
     <Stage>
-      {turning ? <PageTurnSound /> : null}
+      {turning && sfxOn ? <PageTurnSound /> : null}
       <View
         style={StyleSheet.absoluteFill}
         pointerEvents={vocabOpen || turning ? 'none' : 'auto'}
@@ -430,7 +432,7 @@ function StoryIllustration({
   if (!waiting) {
     return (
       <Image
-        source={require('@/../assets/images/night-sky.webp')}
+        source={require('@/assets/images/night-sky.webp')}
         accessibilityLabel="기본 밤하늘 그림"
         style={styles.illustration}
         contentFit="cover"
@@ -441,7 +443,7 @@ function StoryIllustration({
   return (
     <View style={styles.skeleton}>
       <Text maxFontSizeMultiplier={1.2} style={[styles.skeletonText, { textAlign: 'center' }]}>
-        {waiting ? '그림을 그리는 중…' : '그림을 표시할 수 없어요.\n이야기는 계속 읽을 수 있어요.'}
+        그림을 그리는 중…
       </Text>
     </View>
   );
@@ -475,7 +477,7 @@ const styles = StyleSheet.create({
     top: SCREEN.topBarY,
     left: SCREEN.homeButtonX - 104,
   },
-  highlight: { backgroundColor: '#FDE68A' },
+  highlight: { backgroundColor: STAR.yellow.rim },
   commentaryButton: { position: 'absolute', right: 104, bottom: 12 },
   header: {
     position: 'absolute',

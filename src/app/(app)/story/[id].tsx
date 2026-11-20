@@ -41,6 +41,15 @@ export default function StoryRoute() {
         totalPages={live.totalPages}
         streaming={!failed && live.status !== 'done'}
         error={failed ? live.error : null}
+        onCommentary={
+          live.status === 'done' && id
+            ? () =>
+                router.push({
+                  pathname: '/commentary/[fairytaleId]',
+                  params: { fairytaleId: id },
+                })
+            : undefined
+        }
         onRetry={
           failed
             ? () => {

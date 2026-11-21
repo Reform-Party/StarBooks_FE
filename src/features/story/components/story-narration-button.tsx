@@ -1,5 +1,5 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { useNavigation } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -12,6 +12,9 @@ type Props = {
   autoStart?: boolean;
   onFinished?: () => void;
   onProgress?: (currentTime: number, duration: number, playing: boolean) => void;
+  generationMessage?: string;
+  generating?: boolean;
+  onGenerationRetry?: () => Promise<void>;
 };
 
 export default function StoryNarrationButton(props: Props) {
@@ -28,6 +31,9 @@ function NarrationControl({
   onFinished,
   onProgress,
   onRetry,
+  generationMessage,
+  generating,
+  onGenerationRetry,
 }: Props & {
   onRetry: () => void;
 }) {
@@ -131,7 +137,7 @@ function NarrationControl({
   const label = failed
     ? '음성 다시 불러오기'
     : !uri
-      ? '이 쪽은 음성이 아직 없어요'
+      ? (generationMessage ?? '이 쪽은 음성이 아직 없어요')
       : loading
         ? '음성 불러오는 중'
         : status.playing
@@ -143,7 +149,7 @@ function NarrationControl({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        accessibilityState={{ disabled, busy: loading || busy }}
+        accessibilityState={{ disabled, busy: loading || busy || (!uri && generating) }}
         disabled={disabled}
         onPress={() => void togglePlayback()}
         style={({ pressed }) => [
@@ -162,15 +168,37 @@ function NarrationControl({
           음성을 재생하지 못했어요. ↻를 눌러 다시 불러와 주세요.
         </Text>
       ) : !uri ? (
-        <Text maxFontSizeMultiplier={1.2} style={styles.message}>
-          이 쪽은 음성이 아직 없어요.
-        </Text>
+        <View style={styles.message}>
+          <Text accessibilityLiveRegion="polite" style={styles.notice}>
+            {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}
+          </Text>
+          {onGenerationRetry ? (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => void onGenerationRetry()}
+            >
+              <Text style={styles.action}>다시 확인</Text>
+            </Pressable>
+          ) : null}
+          {generationMessage && !generating ? (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={styles.action}>설정에서 목소리 등록</Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  notice: { color: '#FFFFFF', fontFamily: FONT.sans, fontSize: 12, lineHeight: 18 },
+  action: { color: STAR.yellow.c300, fontFamily: FONT.sans, fontSize: 12, paddingVertical: 10 },
   root: {
     position: 'absolute',
     top: SCREEN.topBarY,

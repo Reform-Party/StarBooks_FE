@@ -11,11 +11,10 @@ export const INK = { 1: '#F1F5F9', 2: '#CBD5E1', 3: '#94A3B8' } as const;
 export const GLASS = { fill: 'rgba(255,255,255,0.08)', line: 'rgba(255,255,255,0.22)' } as const;
 
 // 모달 · 설정 카드. RN 에는 backdrop blur 가 없어 화면 시안처럼 .94 로 칠해요.
-// solid 는 아래 버튼이 비치면 안 되는 펼친 목록용이에요.
+// solid 는 아래가 비치면 안 되는 펼친 목록 · 모달 패널용이에요.
 export const PANEL = {
   fill: 'rgba(22,26,60,0.94)',
   solid: '#161A3C',
-  scrim: 'rgba(5,6,18,0.94)',
 } as const;
 
 // 책 속지 · 이야기 카드

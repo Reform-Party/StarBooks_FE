@@ -55,7 +55,10 @@ export default function SoundToggle({ icon, label, value, onChange }: Props) {
             <Circle cx={SIZE / 2} cy={SIZE / 2} r={SIZE / 2} fill="url(#sound-toggle-on)" />
           </Svg>
         </Animated.View>
-        <Icon name={icon} color={value ? mint.on : INK[2]} />
+        {/* 웹은 absolute 인 민트 원이 일반 요소(svg)보다 위에 그려져서, View 로 감싸 원 위에 쌓아요. */}
+        <View pointerEvents="none">
+          <Icon name={icon} color={value ? mint.on : INK[2]} />
+        </View>
       </PressableScale>
       {/* 스위치가 이미 같은 이름을 읽어서, 아래 글씨는 스크린 리더에서 숨겨요. */}
       <AppText

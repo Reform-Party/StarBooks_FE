@@ -79,3 +79,5 @@ export function useStoryNarration(id: string | null, story?: Story) {
         : undefined,
   };
 }
+
+export type StoryNarration = ReturnType<typeof useStoryNarration>;

@@ -59,6 +59,9 @@ export const generateStory = (body: GenerateRequest, { signal, onEvent }: Genera
 const STORY_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const isValidStoryId = (id: unknown): id is string => isStr(id) && STORY_ID_RE.test(id);
 
+export const isNumericStoryId = (id: unknown): id is string =>
+  typeof id === 'string' && /^[1-9]\d*$/.test(id);
+
 type FairytaleDetailDto = {
   fairytaleId: number;
   title: string;
@@ -78,7 +81,7 @@ type FairytaleDetailDto = {
 };
 
 export async function fetchStory(id: string, signal?: AbortSignal): Promise<Story> {
-  if (!/^[1-9]\d*$/.test(id)) {
+  if (!isNumericStoryId(id)) {
     throw new Error('동화 번호가 올바르지 않아요.');
   }
 

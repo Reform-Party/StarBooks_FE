@@ -173,12 +173,20 @@ function NarrationControl({
             {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}
           </Text>
           {onGenerationRetry ? (
-            <Pressable accessibilityRole="button" onPress={() => void onGenerationRetry()}>
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => void onGenerationRetry()}
+            >
               <Text style={styles.action}>다시 확인</Text>
             </Pressable>
           ) : null}
-          {!generating ? (
-            <Pressable accessibilityRole="button" onPress={() => router.push('/settings')}>
+          {generationMessage && !generating ? (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => router.push('/settings')}
+            >
               <Text style={styles.action}>설정에서 목소리 등록</Text>
             </Pressable>
           ) : null}

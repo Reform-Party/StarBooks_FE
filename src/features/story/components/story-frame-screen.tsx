@@ -27,7 +27,7 @@ import type { StoryPage, StoryVocab } from '@/features/story/api/types';
 import PageTurnSound from '@/features/story/components/page-turn-sound';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
-import type { useStoryNarration } from '@/features/story/hooks/use-story-narration';
+import type { StoryNarration } from '@/features/story/hooks/use-story-narration';
 
 const PAPER_INK_2 = '#6B6790';
 
@@ -47,7 +47,7 @@ type Props = {
   retrying?: boolean;
   onHome: () => void;
   onCommentary?: () => void;
-  narration?: ReturnType<typeof useStoryNarration>;
+  narration?: StoryNarration;
 };
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.

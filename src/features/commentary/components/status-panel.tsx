@@ -16,7 +16,6 @@ export default function StatusPanel({ title, sub, onRetry, onHome }: Props) {
   return (
     <CenterModal
       visible
-      scrimColor="rgba(5,6,18,0.3)"
       // 재시도가 계속 실패해도 나갈 수 있게, 뒤로 가기 · VoiceOver 닫기는 메인으로 보내요 (스크림 탭으로는 닫지 않아요)
       onRequestClose={onHome}
       dismissOnScrimPress={false}

@@ -5,7 +5,7 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { useUploadVoiceSample } from '@/features/settings/hooks/use-profile';
@@ -21,6 +21,7 @@ const SILENCE_DBFS = -50;
 const METER_INTERVAL_MS = 50;
 
 export const NOISE_WARNING = '조용한 곳으로 이동해주세요.';
+export const SAVING_MESSAGE = '목소리를 저장하고 있어요';
 
 // idle: 녹음 전 · 취소 / recording: 녹음 중 / noisy: 소음 때문에 멈춤 / saving: 올리는 중
 export type VoiceRecordingStatus = 'idle' | 'recording' | 'noisy' | 'saving';
@@ -32,6 +33,8 @@ type Options = {
 };
 
 // 목소리 등록 녹음: 권한 → 녹음(.m4a) → 소음 검사 → 1분 뒤 자동 업로드.
+// 마운트되면 바로 녹음을 시작하고, 언마운트되면 녹음을 버려요. 모달이 열려 있는 동안만 마운트해 주세요.
+// (useAudioRecorderState 가 50ms 마다 녹음기 상태를 읽어서, 쓰는 컴포넌트가 계속 다시 그려져요)
 // level 은 지금 목소리 크기(0–1)라 성운 live 모드에 그대로 넘겨요. elapsedMs 는 녹음한 시간이에요.
 export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
@@ -60,12 +63,13 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
     level.set(Math.min(1, Math.max(0, (db - SILENCE_DBFS) / -SILENCE_DBFS)));
   }, [recorderState.isRecording, recorderState.metering, level]);
 
-  // 화면을 떠나면 타이머를 멈춰요. (녹음기는 useAudioRecorder 가 정리해요)
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
-
+  // 녹음기가 먼저 정리돼 getStatus 가 실패해도 녹음용 오디오 모드는 꼭 꺼요.
   const stopRecorder = async () => {
-    if (recorder.getStatus().isRecording) await recorder.stop();
-    await setAudioModeAsync({ allowsRecording: false });
+    try {
+      if (recorder.getStatus().isRecording) await recorder.stop();
+    } finally {
+      await setAudioModeAsync({ allowsRecording: false });
+    }
   };
 
   const finish = async (id: number) => {
@@ -92,7 +96,6 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
     const id = session.current;
     clearTimers();
     noisePeak.current = -160;
-    setStatus('idle');
     try {
       const { granted } = await requestRecordingPermissionsAsync();
       if (id !== session.current) return;
@@ -122,15 +125,26 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
     }
   };
 
-  // 닫기 · 뒤로 가기: 녹음을 버려요. 올리는 중이면 결과를 무시해요.
+  // 닫기 · 뒤로 가기 · 화면 이탈: 녹음을 버려요. 올리는 중이면 결과를 무시해요.
   const cancel = () => {
     session.current += 1;
     clearTimers();
-    setStatus('idle');
     stopRecorder().catch(() => undefined);
   };
 
+  // 모달이 열리면 바로 녹음을 시작해요. (Figma: 1 auto 녹음 시작 · 소음 검사)
+  // 다음 틱에 시작해서, 마운트 직후 바로 언마운트되면(개발 모드 StrictMode 등) 녹음을 켜지 않아요.
+  const onMount = useEffectEvent(() => void start());
+  const onUnmount = useEffectEvent(cancel);
+  useEffect(() => {
+    const timer = setTimeout(onMount, 0);
+    return () => {
+      clearTimeout(timer);
+      onUnmount();
+    };
+  }, []);
+
   const elapsedMs = status === 'recording' ? recorderState.durationMillis : 0;
 
-  return { status, level, elapsedMs, start, cancel };
+  return { status, level, elapsedMs };
 }

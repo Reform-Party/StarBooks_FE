@@ -18,10 +18,8 @@ import ProfilePhotoModal from '@/features/settings/components/profile-photo-moda
 import SelectPill, { type SelectOption } from '@/features/settings/components/select-pill';
 import SoundToggle from '@/features/settings/components/sound-toggle';
 import VoiceRecordModal from '@/features/settings/components/voice-record-modal';
-import { VOICE_SENTENCE_MS, VOICE_SENTENCES } from '@/features/settings/constants/voice-sentences';
 import { usePickProfilePhoto } from '@/features/settings/hooks/use-pick-profile-photo';
 import { useProfile, useUpdateProfile } from '@/features/settings/hooks/use-profile';
-import { NOISE_WARNING, useVoiceRecording } from '@/features/settings/hooks/use-voice-recording';
 import { useSettingsStore } from '@/features/settings/store/settings-store';
 import { deleteProfilePhoto, profilePhotoUri } from '@/features/settings/utils/profile-photo-file';
 import { useToast } from '@/hooks/use-toast';
@@ -53,17 +51,6 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   const { mutate: saveProfile } = useUpdateProfile({ onError: (e) => show(e.message) });
 
   const [modal, setModal] = useState<Modal>(null);
-  const voice = useVoiceRecording({
-    onSaved: () => {
-      setModal(null);
-      show('목소리를 등록했어요');
-    },
-    onDenied: () => setModal('micDenied'),
-    onError: (message) => {
-      setModal(null);
-      show(message);
-    },
-  });
   // 성별 · 나이 목록은 한 번에 하나만 펼쳐요.
   const [openSelect, setOpenSelect] = useState<'gender' | 'age' | null>(null);
 
@@ -97,15 +84,14 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
     setModal(null);
   };
 
-  // 모달이 열리면 바로 녹음을 시작해요. (Figma: 1 auto 녹음 시작 · 소음 검사)
-  const handleVoice = () => {
-    setModal('voice');
-    void voice.start();
+  const handleVoiceSaved = () => {
+    setModal(null);
+    show('목소리를 등록했어요');
   };
 
-  const handleCloseVoice = () => {
-    voice.cancel();
+  const handleVoiceError = (message: string) => {
     setModal(null);
+    show(message);
   };
 
   const handleAlbum = async () => {
@@ -156,7 +142,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
             icon={<Icon name="mic" color={STAR.mint.on} />}
             width={300}
             height={40}
-            onPress={handleVoice}
+            onPress={() => setModal('voice')}
             style={styles.voice}
           />
           <View style={styles.toggles}>
@@ -188,13 +174,10 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
       />
       <VoiceRecordModal
         visible={modal === 'voice'}
-        onClose={handleCloseVoice}
-        sentence={
-          VOICE_SENTENCES[Math.floor(voice.elapsedMs / VOICE_SENTENCE_MS) % VOICE_SENTENCES.length]
-        }
-        mode={voice.status === 'recording' ? 'live' : 'idle'}
-        level={voice.level}
-        warning={voice.status === 'noisy' ? NOISE_WARNING : null}
+        onClose={() => setModal(null)}
+        onSaved={handleVoiceSaved}
+        onDenied={() => setModal('micDenied')}
+        onError={handleVoiceError}
       />
       <AlertModal
         visible={modal === 'photoDenied'}

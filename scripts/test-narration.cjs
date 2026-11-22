@@ -67,7 +67,10 @@ const page = { paragraphId: 42, page: 1, text: '동화', imageUrl: null };
   replies = [{ status: 500, body: { message: 'server error' } }];
   await assert.rejects(api.fetchNarration(page), /server error/);
   calls = [];
-  await assert.rejects(api.fetchNarration({ ...page, paragraphId: undefined }), /문단 번호/);
+  assert.equal(
+    (await api.fetchNarration({ ...page, paragraphId: undefined })).paragraphId,
+    undefined,
+  );
   assert.equal(calls.length, 0, 'page number must never stand in for paragraph id');
   replies = [{ status: 202 }];
   assert.equal(typeof (await api.requestNarration('7')), 'number');

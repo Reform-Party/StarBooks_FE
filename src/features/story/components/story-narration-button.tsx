@@ -191,7 +191,7 @@ function NarrationControl({
               <Text style={styles.action}>다시 확인</Text>
             </Pressable>
           ) : null}
-          {generationMessage && !generating ? (
+          {onGenerationRetry && generationMessage && !generating ? (
             <Pressable
               accessibilityRole="button"
               hitSlop={8}

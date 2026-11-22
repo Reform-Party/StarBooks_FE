@@ -4,8 +4,8 @@ import { request } from '@/lib/api-client';
 
 export async function fetchNarration(page: StoryPage, signal?: AbortSignal): Promise<StoryPage> {
   if (!page.paragraphId) {
-    if (page.ttsUrl) return page;
-    throw new Error('동화 응답에 문단 번호가 없어 음성을 확인할 수 없어요.');
+    // 현재 상세 명세에는 paragraphId가 없어요. 페이지 번호로 대체하지 않아요.
+    return page;
   }
   const path = `/api/users/voice/${page.paragraphId}`;
   let exists = false;

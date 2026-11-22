@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useIsFocused } from 'expo-router';
-import { useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
 import { fetchNarration, requestNarration } from '@/features/story/api/narration-api';
+import { fetchStory } from '@/features/story/api/story-api';
 import type { Story, StoryPage } from '@/features/story/api/types';
 
 const POLL_MS = 3_000;
@@ -20,6 +21,7 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
   const active = useSyncExternalStore(subscribeAppState, isActive, () => true);
   const [requested, setRequested] = useState<{ id: string; at: number } | null>(null);
   const requestedAt = requested?.id === id ? requested.at : null;
+  const requestLock = useRef(false);
   const generation = useQuery({
     queryKey: ['story-narration-request', id],
     queryFn: () => requestNarration(id!),
@@ -30,17 +32,23 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
   });
   const completion = useQuery({
     queryKey: ['story-narration-result', id, story?.pages.map((page) => page.paragraphId)],
-    queryFn: async ({ signal }) => ({
-      pages: await Promise.all(story!.pages.map((page) => fetchNarration(page, signal))),
-      checkedAt: Date.now(),
-    }),
+    queryFn: async ({ signal }) => {
+      // 문단 ID를 생략하는 기존 서버에서는 상세 URL 갱신으로 완료를 확인해요.
+      const latest = story!.pages.some((page) => !page.paragraphId)
+        ? await fetchStory(id!, signal)
+        : story!;
+      return {
+        pages: await Promise.all(latest.pages.map((page) => fetchNarration(page, signal))),
+        checkedAt: Date.now(),
+      };
+    },
     enabled: active && focused && id !== null && Boolean(story?.pages.length),
     refetchInterval: (query) =>
       requestedAt !== null &&
       generation.isSuccess &&
       query.state.status !== 'error' &&
       needsNarration(query.state.data?.pages) &&
-      Date.now() - requestedAt < WAIT_MS
+      (query.state.data?.checkedAt ?? requestedAt) - requestedAt < WAIT_MS
         ? POLL_MS
         : false,
     refetchOnWindowFocus: false,
@@ -48,7 +56,7 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
     retry: false,
   });
   const missing = needsNarration(completion.data?.pages);
-  const error = generation.error ?? completion.error;
+  const error = completion.error ?? (missing ? generation.error : null);
   const timedOut =
     missing && requestedAt !== null && (completion.data?.checkedAt ?? 0) - requestedAt >= WAIT_MS;
   const pending =
@@ -57,13 +65,18 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
     (requestedAt !== null && missing && !error && !timedOut);
 
   const handleRequest = async () => {
-    if (!id || !story || pending) return;
-    // 응답 유실이나 재진입 시에도 기존 음성을 먼저 조회해 중복 생성을 막아요.
-    const result = await completion.refetch();
-    if (!result.isSuccess || !needsNarration(result.data.pages) || !canGenerate) return;
-    setRequested({ id, at: Date.now() });
-    if (!generation.isSuccess) await generation.refetch();
-    await completion.refetch();
+    if (!id || !story || pending || requestLock.current) return;
+    requestLock.current = true;
+    try {
+      // 응답 유실이나 재진입 시에도 기존 음성을 먼저 조회해 중복 생성을 막아요.
+      const result = await completion.refetch({ cancelRefetch: false });
+      if (!result.isSuccess || !needsNarration(result.data.pages) || !canGenerate) return;
+      setRequested({ id, at: Date.now() });
+      if (!generation.isSuccess) await generation.refetch({ cancelRefetch: false });
+      await completion.refetch();
+    } finally {
+      requestLock.current = false;
+    }
   };
 
   return {

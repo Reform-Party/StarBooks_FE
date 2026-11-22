@@ -43,5 +43,12 @@ export function useUpdateProfile({ onError }: { onError?: (error: Error) => void
 
 // 목소리 학습 요청. 녹음 화면에서 녹음 파일(.m4a) 경로를 넘겨요.
 export function useUploadVoiceSample() {
-  return useMutation({ mutationFn: (fileUri: string) => uploadVoiceSample(fileUri) });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fileUri: string) => uploadVoiceSample(fileUri),
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ['story-narration-request'] });
+      await queryClient.resetQueries({ queryKey: ['story-narration-result'] });
+    },
+  });
 }

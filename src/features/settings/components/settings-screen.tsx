@@ -18,8 +18,10 @@ import ProfilePhotoModal from '@/features/settings/components/profile-photo-moda
 import SelectPill, { type SelectOption } from '@/features/settings/components/select-pill';
 import SoundToggle from '@/features/settings/components/sound-toggle';
 import VoiceRecordModal from '@/features/settings/components/voice-record-modal';
+import { VOICE_SENTENCE_MS, VOICE_SENTENCES } from '@/features/settings/constants/voice-sentences';
 import { usePickProfilePhoto } from '@/features/settings/hooks/use-pick-profile-photo';
 import { useProfile, useUpdateProfile } from '@/features/settings/hooks/use-profile';
+import { NOISE_WARNING, useVoiceRecording } from '@/features/settings/hooks/use-voice-recording';
 import { useSettingsStore } from '@/features/settings/store/settings-store';
 import { deleteProfilePhoto, profilePhotoUri } from '@/features/settings/utils/profile-photo-file';
 import { useToast } from '@/hooks/use-toast';
@@ -28,10 +30,8 @@ const GENDER_OPTIONS: readonly SelectOption<Gender>[] = [
   { label: '여자', value: 'W' },
   { label: '남자', value: 'M' },
 ];
-// 목소리 등록 때 아이가 따라 읽을 문장 (Figma 목소리 등록 · 기본)
-const VOICE_SENTENCE = '옛날 옛적에 꼬마 동화구연가가 살았어요.';
 
-type Modal = 'photo' | 'voice' | 'photoDenied' | null;
+type Modal = 'photo' | 'voice' | 'photoDenied' | 'micDenied' | null;
 
 type Props = {
   user: User;
@@ -53,6 +53,17 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   const { mutate: saveProfile } = useUpdateProfile({ onError: (e) => show(e.message) });
 
   const [modal, setModal] = useState<Modal>(null);
+  const voice = useVoiceRecording({
+    onSaved: () => {
+      setModal(null);
+      show('목소리를 등록했어요');
+    },
+    onDenied: () => setModal('micDenied'),
+    onError: (message) => {
+      setModal(null);
+      show(message);
+    },
+  });
   // 성별 · 나이 목록은 한 번에 하나만 펼쳐요.
   const [openSelect, setOpenSelect] = useState<'gender' | 'age' | null>(null);
 
@@ -83,6 +94,17 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
 
   const handleDefaultPhoto = () => {
     replacePhoto(null);
+    setModal(null);
+  };
+
+  // 모달이 열리면 바로 녹음을 시작해요. (Figma: 1 auto 녹음 시작 · 소음 검사)
+  const handleVoice = () => {
+    setModal('voice');
+    void voice.start();
+  };
+
+  const handleCloseVoice = () => {
+    voice.cancel();
     setModal(null);
   };
 
@@ -134,7 +156,7 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
             icon={<Icon name="mic" color={STAR.mint.on} />}
             width={300}
             height={40}
-            onPress={() => setModal('voice')}
+            onPress={handleVoice}
             style={styles.voice}
           />
           <View style={styles.toggles}>
@@ -164,18 +186,28 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
         onPressDefault={handleDefaultPhoto}
         onPressAlbum={handleAlbum}
       />
-      {/* 녹음 · 소음 검사 · 자동 저장은 다음 작업에서 연결해요. 지금은 기본(idle) 상태만 보여줘요. */}
       <VoiceRecordModal
         visible={modal === 'voice'}
-        onClose={() => setModal(null)}
-        sentence={VOICE_SENTENCE}
-        mode="idle"
+        onClose={handleCloseVoice}
+        sentence={
+          VOICE_SENTENCES[Math.floor(voice.elapsedMs / VOICE_SENTENCE_MS) % VOICE_SENTENCES.length]
+        }
+        mode={voice.status === 'recording' ? 'live' : 'idle'}
+        level={voice.level}
+        warning={voice.status === 'noisy' ? NOISE_WARNING : null}
       />
       <AlertModal
         visible={modal === 'photoDenied'}
         tone="pink"
         title="사진을 볼 수 없어요"
         message="기기 설정에서 사진 접근을 허용해 주세요"
+        onAction={() => setModal(null)}
+      />
+      <AlertModal
+        visible={modal === 'micDenied'}
+        tone="pink"
+        title="마이크를 쓸 수 없어요"
+        message="기기 설정에서 마이크 접근을 허용해 주세요"
         onAction={() => setModal(null)}
       />
       <Toast toast={toast} top={300} />

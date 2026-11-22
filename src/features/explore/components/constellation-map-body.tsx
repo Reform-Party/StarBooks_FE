@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 
+import JellyStar from '@/components/ui/jelly-star';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
@@ -26,6 +27,7 @@ type Props<T extends StorySummary> = {
   blocked?: boolean;
   edgeHints?: boolean;
   maxPageDots?: number;
+  showEmptySlots?: boolean;
 };
 
 const ENTER_FROM_RIGHT = FadeInRight.duration(350).easing(Easing.out(Easing.cubic));
@@ -42,6 +44,7 @@ export default function ConstellationMapBody<T extends StorySummary>({
   blocked = false,
   edgeHints = false,
   maxPageDots = Infinity,
+  showEmptySlots = false,
 }: Props<T>) {
   const { direction, movePage, panResponder } = useConstellationPagination(
     pagination,
@@ -49,7 +52,8 @@ export default function ConstellationMapBody<T extends StorySummary>({
   );
   const { page: currentPage, totalPages: pageCount, hasPrevious, hasNext } = pagination;
   const visibleStories = stories.slice(0, POSITIONS.length);
-  const lastPoint = POSITIONS[visibleStories.length - 1];
+  const visiblePositions = showEmptySlots ? POSITIONS : POSITIONS.slice(0, visibleStories.length);
+  const lastPoint = visiblePositions[visiblePositions.length - 1];
 
   return (
     <>
@@ -73,13 +77,12 @@ export default function ConstellationMapBody<T extends StorySummary>({
 
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             <Svg width={SCREEN.width} height={SCREEN.height}>
-              {visibleStories.slice(1).map((story, index) => {
+              {visiblePositions.slice(1).map((end, index) => {
                 const start = POSITIONS[index];
-                const end = POSITIONS[index + 1];
 
                 return (
                   <Line
-                    key={story.id}
+                    key={index}
                     x1={start.x}
                     y1={start.y}
                     x2={end.x}
@@ -97,12 +100,15 @@ export default function ConstellationMapBody<T extends StorySummary>({
           {/* 빈 하늘에서 시작한 스와이프를 받도록 네이티브 뷰를 유지해요. */}
           <View collapsable={false} style={styles.swipeArea} />
 
-          {visibleStories.map((story, index) => {
-            const point = POSITIONS[index];
+          {visiblePositions.map((point, index) => {
+            const story = visibleStories[index];
 
             return (
               <View
-                key={story.id}
+                key={story?.id ?? `empty-${index}`}
+                pointerEvents={story ? 'auto' : 'none'}
+                accessibilityElementsHidden={!story}
+                importantForAccessibility={story ? 'auto' : 'no-hide-descendants'}
                 style={[
                   styles.starSlot,
                   {
@@ -111,7 +117,13 @@ export default function ConstellationMapBody<T extends StorySummary>({
                   },
                 ]}
               >
-                {renderStar(story)}
+                {story ? (
+                  renderStar(story)
+                ) : (
+                  <View style={styles.emptyStar}>
+                    <JellyStar size={72.48} color={tone} />
+                  </View>
+                )}
               </View>
             );
           })}
@@ -186,8 +198,8 @@ export default function ConstellationMapBody<T extends StorySummary>({
         </View>
       ) : null}
 
-      {stories.length === 0 ? (
-        <View style={styles.empty}>
+      {stories.length === 0 && emptyText ? (
+        <View pointerEvents="none" style={[styles.empty, showEmptySlots && styles.emptyBelowMap]}>
           <Text maxFontSizeMultiplier={1.2} style={styles.emptyText}>
             {emptyText}
           </Text>
@@ -198,6 +210,14 @@ export default function ConstellationMapBody<T extends StorySummary>({
 }
 
 const styles = StyleSheet.create({
+  emptyStar: {
+    width: STORY_STAR_SIZE,
+    height: STORY_STAR_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.3,
+  },
+  emptyBelowMap: { top: 'auto', bottom: SCREEN.safeBottom },
   swipeArea: {
     position: 'absolute',
     top: 160,

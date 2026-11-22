@@ -34,7 +34,7 @@ export default function StoryRoute() {
   const saved = useStory((live && live.status !== 'done') || !id ? null : id);
   // 여행·출처 없는 진입에서는 기존 음성만 재생해요. 소유권은 서버에서도 검증해야 해요.
   const canGenerate = from !== 'travel' && (from === 'bookshelf' || openedLive);
-  const narration = useStoryNarration(canGenerate && isNumericStoryId(id) ? id : null, saved.data);
+  const narration = useStoryNarration(isNumericStoryId(id) ? id : null, saved.data, canGenerate);
 
   if (live) {
     const failed = live.status === 'error';

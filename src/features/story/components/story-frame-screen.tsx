@@ -147,7 +147,7 @@ export default function StoryFrameScreen({
         setIndex(nextIndex);
         setTurnTarget(null);
         turnLock.current = false;
-        setAutoReadPage(continueReading && pages[nextIndex]?.ttsUrl ? nextIndex : null);
+        setAutoReadPage(continueReading ? nextIndex : null);
         setTurning(false);
         // 각도는 다음 이동을 시작할 때 초기화해요. 이전 내용이 다시 보이지 않게 해요.
       });
@@ -389,19 +389,25 @@ export default function StoryFrameScreen({
             generationMessage={narration?.message}
             generating={narration?.pending}
             onGenerationRetry={narration?.onRetry}
+            onGenerate={
+              narration?.onRequest
+                ? async () => {
+                    setAutoReadPage(index);
+                    await narration.onRequest?.();
+                  }
+                : undefined
+            }
             autoStart={autoReadPage === index}
             onFinished={handleNarrationFinished}
             onProgress={handleNarrationProgress}
           />
         ) : null}
 
-        {onCommentary && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
-          <JellyButton
-            label="관계도 보러 가기"
-            height={36}
-            onPress={onCommentary}
-            style={styles.commentaryButton}
-          />
+        {!streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
+          <View style={styles.completionActions}>
+            {onCommentary ? <JellyButton label="동화 해설 보기" onPress={onCommentary} /> : null}
+            <JellyButton label="메인 화면으로" tone="glass" onPress={onHome} />
+          </View>
         ) : null}
         <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.home} />
       </View>
@@ -484,7 +490,15 @@ const styles = StyleSheet.create({
     left: SCREEN.homeButtonX - 104,
   },
   highlight: { backgroundColor: STAR.yellow.rim },
-  commentaryButton: { position: 'absolute', right: 104, bottom: 12 },
+  completionActions: {
+    position: 'absolute',
+    left: 104,
+    right: 104,
+    bottom: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
   header: {
     position: 'absolute',
     top: 14,

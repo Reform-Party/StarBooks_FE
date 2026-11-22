@@ -73,11 +73,12 @@ type RequestOptions = {
   body?: unknown;
   signal?: AbortSignal;
   timeoutMs?: number;
+  onStatus?: (status: number) => void;
 };
 
 export async function request<T>(
   path: string,
-  { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {},
+  { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS, onStatus }: RequestOptions = {},
 ): Promise<T> {
   // 부른 쪽의 취소와 타임아웃을 하나의 signal 로 묶어요.
   const controller = new AbortController();
@@ -115,6 +116,7 @@ export async function request<T>(
 
     if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
     if (!res.ok) throw await toApiError(res, '요청을 처리하지 못했어요');
+    onStatus?.(res.status);
 
     // 본문이 없는 응답(204 등)만 허용하고, 2xx 인데 JSON 이 아니면 오류로 봐요.
     let text = '';

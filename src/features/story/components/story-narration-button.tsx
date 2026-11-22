@@ -15,6 +15,7 @@ type Props = {
   generationMessage?: string;
   generating?: boolean;
   onGenerationRetry?: () => Promise<void>;
+  onGenerate?: () => Promise<void>;
 };
 
 export default function StoryNarrationButton(props: Props) {
@@ -34,6 +35,7 @@ function NarrationControl({
   generationMessage,
   generating,
   onGenerationRetry,
+  onGenerate,
 }: Props & {
   onRetry: () => void;
 }) {
@@ -49,7 +51,10 @@ function NarrationControl({
     let cancelled = false;
 
     void Promise.resolve()
-      .then(() => {
+      .then(async () => {
+        if (Platform.OS !== 'web') {
+          await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+        }
         if (!cancelled) player.play();
       })
       .catch(() => {
@@ -97,7 +102,7 @@ function NarrationControl({
 
   const failed = actionError || Boolean(status.error);
   const loading = Boolean(uri) && !failed && !status.isLoaded;
-  const disabled = !uri || loading || busy;
+  const disabled = (!uri && (!onGenerate || Boolean(generating))) || loading || busy;
 
   const togglePlayback = async () => {
     if (failed) {
@@ -106,6 +111,11 @@ function NarrationControl({
     }
 
     if (disabled) return;
+
+    if (!uri) {
+      await onGenerate?.();
+      return;
+    }
 
     try {
       if (player.playing) {

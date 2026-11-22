@@ -52,6 +52,7 @@ export default function FloatingStarButton({ label, tone, reverse, onPress }: Pr
       </Animated.View>
       <Text
         numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
         style={[
           TYPE.heading,
           styles.label,

@@ -1,15 +1,11 @@
-import type { Gender } from '@/features/auth/api/types';
+import { FROM_API_GENDER, TO_API_GENDER } from '@/features/auth/api/types';
 import type {
-  ApiGender,
   Profile,
   ProfileDto,
   ProfileUpdate,
   ProfileUpdateDto,
 } from '@/features/settings/api/types';
 import { request, REQUEST_TIMEOUT_MS } from '@/lib/api-client';
-
-const TO_API_GENDER: Record<Gender, ApiGender> = { M: 'MALE', W: 'FEMALE' };
-const FROM_API_GENDER: Record<ApiGender, Gender> = { MALE: 'M', FEMALE: 'W' };
 
 const toProfile = (dto: ProfileDto): Profile => ({
   nickname: dto.username,

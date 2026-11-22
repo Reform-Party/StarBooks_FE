@@ -34,7 +34,7 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
     queryKey: ['story-narration-result', id, story?.pages.map((page) => page.paragraphId)],
     queryFn: async ({ signal }) => {
       // 문단 ID를 생략하는 기존 서버에서는 상세 URL 갱신으로 완료를 확인해요.
-      const latest = story!.pages.some((page) => !page.paragraphId)
+      const latest = story!.pages.some((page) => !page.paragraphId && !page.ttsUrl)
         ? await fetchStory(id!, signal)
         : story!;
       return {
@@ -79,20 +79,29 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
     }
   };
 
+  const checkedPages = completion.data?.pages ?? story?.pages ?? [];
+  const diagnostics =
+    __DEV__ && requestedAt !== null
+      ? `동화 ${id} · 요청 ${generation.isFetching ? '전송 중' : generation.isSuccess ? '접수됨' : generation.isError ? '실패' : '대기'} · 음성 ${checkedPages.filter((page) => page.ttsUrl).length}/${checkedPages.length} · 문단 ID ${checkedPages.filter((page) => page.paragraphId).length}/${checkedPages.length}`
+      : undefined;
+
   return {
+    diagnostics,
     pages: completion.data?.pages ?? story?.pages,
     message: error
       ? error.message
       : timedOut
-        ? '음성 생성이 오래 걸리고 있어요. 다시 확인해 주세요.'
+        ? checkedPages.every((page) => !page.paragraphId && !page.ttsUrl)
+          ? '서버에서 음성 주소와 조회용 문단 번호를 받지 못했어요. 음성 연결 확인이 필요해요.'
+          : '음성 요청은 접수됐지만 서버에서 재생할 파일을 아직 받지 못했어요.'
         : pending
           ? requestedAt === null
             ? '음성을 확인하고 있어요'
-            : '목소리를 만들고 있어요'
+            : '요청한 음성 파일을 기다리고 있어요'
           : missing
             ? canGenerate
               ? '재생을 누르면 목소리를 만들어요'
-              : '이 쪽은 음성이 아직 없어요'
+              : '이 동화에는 아직 음성이 없어요. 지금은 글로 읽을 수 있어요.'
             : undefined,
     pending,
     onRequest: canGenerate && id && story ? handleRequest : undefined,

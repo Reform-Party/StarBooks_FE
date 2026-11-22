@@ -1,20 +1,18 @@
 import * as SecureStore from 'expo-secure-store';
 
 import {
-  FROM_API_GENDER,
   type LoginBody,
-  type ProfileDto,
   type SignupBody,
   type SignupDto,
   TO_API_GENDER,
   type User,
 } from '@/features/auth/api/types';
-import { ApiError, request, requestWithHeaders, setAccessToken } from '@/lib/api-client';
+import { fetchProfile } from '@/features/settings/api/profile-api';
+import { ApiError, requestWithHeaders, setAccessToken } from '@/lib/api-client';
 
 const LOGIN_PATH = '/api/auth/login';
 // 서버 경로는 sign-up 이에요. (signup 아님)
 const SIGNUP_PATH = '/api/auth/sign-up';
-const PROFILE_PATH = '/api/users/profile';
 
 // 프로필 응답에 아이디가 없어서, 로그인한 아이디를 토큰과 함께 기기에 둬요.
 const USER_ID_KEY = 'userId';
@@ -71,15 +69,14 @@ export async function signup({ gender, ...rest }: SignupBody): Promise<User> {
 // 가입은 됐지만 바로 로그인하지 못했을 때의 오류 코드
 export const SIGNED_UP_WITHOUT_SESSION = 'SIGNED_UP_WITHOUT_SESSION';
 
+// 로그인 응답에 유저 정보가 없어서, 프로필(GET /api/users/profile)과 기기에 둔 아이디로 만들어요.
 export async function fetchMe(): Promise<User> {
-  const dto = await request<ProfileDto>(PROFILE_PATH);
-  const id = (await SecureStore.getItemAsync(USER_ID_KEY)) ?? '';
-  return {
-    id,
-    nickname: dto.username,
-    age: dto.age,
-    gender: FROM_API_GENDER[dto.gender],
-  };
+  const id = await SecureStore.getItemAsync(USER_ID_KEY);
+  // 아이디 저장 전에 로그인해 토큰만 남은 기기예요. 프로필 사진이 user.id 로 저장돼서
+  // 빈 아이디로 두면 이런 계정끼리 섞여요. 401 로 던져 restore 가 토큰을 지우고 다시 로그인하게 해요.
+  if (!id) throw new ApiError(401, 'NO_USER_ID', '다시 로그인해 주세요');
+  const profile = await fetchProfile();
+  return { id, ...profile };
 }
 
 export async function logout() {

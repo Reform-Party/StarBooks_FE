@@ -1,6 +1,7 @@
 // 인증 API 타입 (노션 사용자 API 명세: 회원가입 · 로그인)
 
 // 앱 안에서 쓰는 성별. 서버와 주고받을 때는 ApiGender('MALE' · 'FEMALE')로 바꿔요.
+// 서버 성별 값과 변환표는 여기 한 곳에 두고, settings 의 프로필 API 도 이걸 가져가요.
 export type Gender = 'M' | 'W';
 export type ApiGender = 'MALE' | 'FEMALE';
 
@@ -22,10 +23,3 @@ export type LoginBody = { userId: string; password: string };
 // 회원가입. 응답 data 는 null 이에요. 실패: 409 DUPLICATED_USER_ID_409
 export type SignupBody = LoginBody & { nickname: string; age: number; gender: Gender };
 export type SignupDto = LoginBody & { nickname: string; age: number; gender: ApiGender };
-
-// GET /api/users/profile 의 data. 로그인 응답에 유저 정보가 없어서 로그인 뒤에 이걸로 받아요.
-export type ProfileDto = {
-  username: string;
-  gender: ApiGender;
-  age: number;
-};

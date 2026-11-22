@@ -24,7 +24,7 @@ export default function GeneratingRoute() {
     const request = buildGenerateRequest(selection);
     const { status: current, request: running } = useGenerationStore.getState();
     // 실패한 뒤 다시 들어오면 이전 오류를 보여 주지 않고 새로 요청해요.
-    const inFlight = current === 'connecting' || current === 'streaming' || current === 'ready';
+    const inFlight = current === 'connecting' || current === 'ready';
     if (inFlight && running && isSameSelection(running, request)) return;
     void start(request);
   }, [missing, selection, start]);

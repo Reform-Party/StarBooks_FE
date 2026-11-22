@@ -1,18 +1,26 @@
 import { create } from 'zustand';
 
 import { onSignOut } from '@/features/auth/store/auth-store';
-import { generateStory } from '@/features/story/api/story-api';
-import type { GenerateRequest, StoryEvent, StoryMeta, StoryPage } from '@/features/story/api/types';
-import { ApiError, notifyUnauthorized } from '@/lib/api-client';
+import { createFairytale, fetchStory, subscribeStory } from '@/features/story/api/story-api';
+import type {
+  GenerateRequest,
+  PageContent,
+  Story,
+  StoryMeta,
+  StoryPage,
+} from '@/features/story/api/types';
+import { ApiError } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
-export type GenerationStatus = 'idle' | 'connecting' | 'streaming' | 'ready' | 'done' | 'error';
+// connecting: 동화 만들기 요청 ~ 준비 전 / ready: 첫 3쪽이 와서 읽기 화면으로 / done: 다 만듦
+export type GenerationStatus = 'idle' | 'connecting' | 'ready' | 'done' | 'error';
 
 type GenerationData = {
   status: GenerationStatus;
   // 지금(또는 마지막으로) 보낸 요청. 같은 선택인지 비교하고, 다시 시도할 때 써요.
   request: GenerateRequest | null;
   storyId: string | null;
+  // 서버가 전체 쪽수를 미리 알려 주지 않아서, 만드는 중에는 "받은 쪽 + 1" 로 다음 쪽을 기다려요.
   totalPages: number;
   meta: StoryMeta | null;
   pages: StoryPage[];
@@ -36,114 +44,200 @@ const INITIAL: GenerationData = {
 };
 
 const FALLBACK_ERROR = '동화를 만들지 못했어요';
+const LOST_ERROR = '연결이 끊어졌어요. 다시 시도해 주세요';
 
-// 스트림 중간에 토큰이 만료되면 error 이벤트로만 와요. (코드 이름은 BE 명세가 확정되면 맞춰요)
-const UNAUTHORIZED_CODES = new Set(['UNAUTHORIZED', 'TOKEN_EXPIRED', 'HTTP_401']);
+// 명세: 연결은 1시간 유지, done 전에 끊기면 다시 연결해요.
+const MAX_WAIT_MS = 60 * 60 * 1000;
+const RECONNECT_DELAY_MS = 2_000;
+// 다시 연결해도 새 쪽이 이만큼 연속으로 없으면, 받은 쪽이 있으면 끝난 것으로 · 없으면 실패로 봐요.
+// (done 을 연결이 끊긴 사이에 보냈으면 다시 오지 않아요)
+const MAX_IDLE_ROUNDS = 3;
 
 // 같은 별 세 개를 골랐는지
 export const isSameSelection = (a: GenerateRequest, b: GenerateRequest) =>
-  a.lessonId === b.lessonId && a.speciesId === b.speciesId && a.backgroundId === b.backgroundId;
+  a.background === b.background && a.charSpecies === b.charSpecies && a.morality === b.morality;
 
-// 페이지 배열을 page 쪽까지 늘려요.
-function ensurePages(pages: StoryPage[], count: number) {
-  const next = pages.slice();
-  while (next.length < count) next.push({ page: next.length + 1, text: '', imageUrl: null });
-  return next;
-}
+const toPage = (c: PageContent): StoryPage => ({
+  page: c.pageNo,
+  text: c.text.join('\n'),
+  sentences: c.text,
+  imageUrl: c.imageUrl,
+});
 
-function updatePage(pages: StoryPage[], page: number, patch: (p: StoryPage) => Partial<StoryPage>) {
-  const next = ensurePages(pages, page);
-  next[page - 1] = { ...next[page - 1], ...patch(next[page - 1]) };
-  return next;
-}
-
-function reduce(state: GenerationData, e: StoryEvent): Partial<GenerationData> {
-  switch (e.event) {
-    case 'started':
-      return {
-        status: 'streaming',
-        storyId: e.data.storyId,
-        totalPages: e.data.totalPages,
-        pages: ensurePages([], e.data.totalPages),
-      };
-    case 'meta':
-      return { meta: e.data };
-    case 'text':
-      return {
-        pages: updatePage(state.pages, e.data.page, (p) => ({ text: p.text + e.data.delta })),
-      };
-    case 'image':
-      return { pages: updatePage(state.pages, e.data.page, () => ({ imageUrl: e.data.url })) };
-    case 'ready':
-      return state.status === 'streaming' ? { status: 'ready' } : {};
-    case 'done': {
-      const { pages } = e.data.story;
-      // 최종 쪽수가 처음 알려 준 것과 달라도 "다음" 이 "쓰는 중…" 으로 남지 않게 맞춰요.
-      return { status: 'done', pages, totalPages: pages.length };
-    }
-    case 'error':
-      return { status: 'error', error: e.data.message ?? FALLBACK_ERROR };
+// 쪽 번호 순서로 합쳐요. 그림은 새 값이 없으면 받아 둔 것을 지켜요.
+function mergePages(pages: StoryPage[], incoming: StoryPage[]) {
+  const byPage = new Map(pages.map((p) => [p.page, p]));
+  for (const p of incoming) {
+    const prev = byPage.get(p.page);
+    byPage.set(p.page, { ...prev, ...p, imageUrl: p.imageUrl ?? prev?.imageUrl ?? null });
   }
+  return [...byPage.values()].sort((a, b) => a.page - b.page);
 }
 
-// 지금 이어지고 있는 스트림. 새로 시작하거나 비우면 끊어요.
+// Figma "준비 완료": 첫 3쪽의 글 · 그림이 모두 오면 읽기 화면으로 넘어가요. (그 전에 done 이 오면 그때)
+const READY_PAGES = 3;
+const isReady = (pages: StoryPage[]) =>
+  Array.from({ length: READY_PAGES }, (_, i) => i + 1).every((n) => {
+    const p = pages.find((x) => x.page === n);
+    return !!p?.text && !!p.imageUrl;
+  });
+
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+
+// 4xx(토큰 만료 · 없는 동화 등)는 다시 연결해도 같아서 바로 실패로 봐요.
+const isFatal = (e: unknown) =>
+  e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 408;
+
+// 지금 이어지고 있는 작업. 새로 시작하거나 비우면 끊어요.
 let controller: AbortController | null = null;
 
-// 동화 생성(SSE) 상태. 생성 중 → 동화 프레임으로 화면이 바뀌어도 스트림이 끊기지 않도록
-// 화면이 아니라 전역 스토어가 스트림을 들고 있어요.
-export const useGenerationStore = create<GenerationState>()((set, get) => ({
-  ...INITIAL,
-
-  start: async (request) => {
+// 동화 생성 상태. 만드는 중 → 동화 프레임으로 화면이 바뀌어도 연결이 끊기지 않도록
+// 화면이 아니라 전역 스토어가 연결을 들고 있어요.
+// 흐름(API 명세): POST /api/fairytales → id → GET /api/fairytales/{id}/sse (connect · page_content · done)
+export const useGenerationStore = create<GenerationState>()((set, get) => {
+  const begin = () => {
     controller?.abort();
     const current = new AbortController();
     controller = current;
-    set({ ...INITIAL, status: 'connecting', request });
+    return current;
+  };
 
-    // 취소된 작업(새로 시작 · reset)은 아래 어디서도 상태를 건드리지 않아요.
-    // expo/fetch 는 연결 중에 취소하면 AbortError 가 아닌 오류를 던져서, 오류 이름 대신 signal 로 판단해요.
-    let finished = false;
+  // 새 쪽이 하나라도 늘었으면 true
+  const addPages = (incoming: StoryPage[]) => {
+    if (!incoming.length) return false;
+    const before = get().pages;
+    const pages = mergePages(before, incoming);
+    set({
+      pages,
+      totalPages: pages.length + 1,
+      ...(get().status === 'connecting' && isReady(pages) ? { status: 'ready' as const } : {}),
+    });
+    return pages.length > before.length;
+  };
+
+  // 연결이 끊긴 사이에 보낸 쪽은 SSE 로 다시 오지 않아서, 동화 조회로 채워요.
+  const catchUp = async (id: string, signal: AbortSignal): Promise<Story | null> => {
     try {
-      await generateStory(request, {
-        signal: current.signal,
-        onEvent: (e) => {
-          if (current.signal.aborted) return;
-          if (e.event === 'error' && e.data.code && UNAUTHORIZED_CODES.has(e.data.code)) {
-            notifyUnauthorized();
-          }
-          // 다 만든 동화는 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
-          if (e.event === 'done')
-            queryClient.setQueryData(['story', e.data.story.id], e.data.story);
-          if (e.event === 'done' || e.event === 'error') finished = true;
-          set(reduce(get(), e));
-        },
-      });
-      if (current.signal.aborted) return;
-      if (!finished) set({ status: 'error', error: '연결이 끊어졌어요. 다시 시도해 주세요' });
+      const story = await fetchStory(id);
+      if (signal.aborted) return null;
+      set({ meta: { title: story.title } });
+      return story;
+    } catch {
+      return null;
+    }
+  };
+
+  const finish = async (id: string, signal: AbortSignal) => {
+    const story = await catchUp(id, signal);
+    if (signal.aborted) return;
+    if (story) {
+      addPages(story.pages);
+      // 다 만든 동화는 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
+      queryClient.setQueryData(['story', id], story);
+    }
+    const { pages } = get();
+    if (!pages.length) {
+      set({ status: 'error', error: FALLBACK_ERROR });
+      return;
+    }
+    set({ status: 'done', totalPages: pages.length });
+  };
+
+  // done 을 받을 때까지 SSE 에 붙어 있어요. 끊기면 빠진 쪽을 채우고 다시 연결해요.
+  const follow = async (id: string, current: AbortController) => {
+    const { signal } = current;
+    const startedAt = Date.now();
+    let idleRounds = 0;
+    for (;;) {
+      let progressed = false;
+      let done = false;
+      try {
+        await subscribeStory(id, {
+          signal,
+          onEvent: (e) => {
+            if (signal.aborted) return;
+            if (e.event === 'page') progressed = addPages([toPage(e.data)]) || progressed;
+            if (e.event === 'done') done = true;
+          },
+        });
+      } catch (e) {
+        if (signal.aborted) return;
+        if (isFatal(e)) {
+          current.abort();
+          set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
+          return;
+        }
+      }
+      if (signal.aborted) return;
+      if (done) return finish(id, signal);
+
+      const story = await catchUp(id, signal);
+      if (signal.aborted) return;
+      if (story) progressed = addPages(story.pages) || progressed;
+
+      idleRounds = progressed ? 0 : idleRounds + 1;
+      if (idleRounds >= MAX_IDLE_ROUNDS || Date.now() - startedAt > MAX_WAIT_MS) {
+        if (get().pages.length) return finish(id, signal);
+        set({ status: 'error', error: LOST_ERROR });
+        return;
+      }
+      await sleep(RECONNECT_DELAY_MS, signal);
+      if (signal.aborted) return;
+    }
+  };
+
+  const run = async (current: AbortController, work: () => Promise<void>) => {
+    try {
+      await work();
     } catch (e) {
       if (current.signal.aborted) return;
-      // 읽기 도중 실패해도 연결이 남지 않게 닫아요. (iOS 는 reader.cancel() 만으로 요청이 닫히지 않아요)
-      current.abort();
-      // done · error 를 받은 뒤 늦게 끊긴 연결(무응답 타이머 등)은 결과를 바꾸지 않아요.
-      if (finished) return;
       // TypeError 같은 내부 문구가 아이 화면에 보이지 않게, 서버 · 네트워크 오류 문구만 보여 줘요.
       set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
     } finally {
       if (controller === current) controller = null;
     }
-  },
+  };
 
-  retry: () => {
-    const { request } = get();
-    if (request) void get().start(request);
-  },
+  return {
+    ...INITIAL,
 
-  reset: () => {
-    controller?.abort();
-    controller = null;
-    set(INITIAL);
-  },
-}));
+    start: async (request) => {
+      const current = begin();
+      set({ ...INITIAL, status: 'connecting', request });
+      await run(current, async () => {
+        const id = await createFairytale(request, current.signal);
+        if (current.signal.aborted) return;
+        set({ storyId: id });
+        await follow(id, current);
+      });
+    },
+
+    // 동화를 이미 만들었으면 같은 동화에 다시 연결하고, 만들기 전에 실패했으면 새로 만들어요.
+    retry: () => {
+      const { request, storyId, pages } = get();
+      if (!storyId) {
+        if (request) void get().start(request);
+        return;
+      }
+      const current = begin();
+      set({ status: isReady(pages) ? 'ready' : 'connecting', error: null });
+      void run(current, () => follow(storyId, current));
+    },
+
+    reset: () => {
+      controller?.abort();
+      controller = null;
+      set(INITIAL);
+    },
+  };
+});
 
 // 로그아웃하면 만들던 동화도 끊고 비워요.
 onSignOut(() => useGenerationStore.getState().reset());

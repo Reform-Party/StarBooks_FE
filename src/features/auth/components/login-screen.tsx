@@ -16,27 +16,30 @@ import { useLogin } from '@/features/auth/hooks/use-auth-api';
 import { useToast } from '@/hooks/use-toast';
 
 type Props = {
-  // 가입을 마치고 돌아오면 가입한 이메일을 채워 둬요.
-  initialEmail?: string;
+  // 가입을 마치고 돌아오면 가입한 아이디를 채워 둬요.
+  initialUserId?: string;
 };
 
 // 기본 · 로그인 (Figma design · 세로 화면)
 //  1 입력칸 포커스: 노란 테두리 + 은은한 글로우
-//  3 로그인: 이메일 · 비밀번호를 모두 채워야 활성 · 실패하면 비밀번호 칸 아래 오류 문구 + 입력칸 흔들림 0.3s
+//  3 로그인: 아이디 · 비밀번호를 모두 채워야 활성 · 실패하면 비밀번호 칸 아래 오류 문구 + 입력칸 흔들림 0.3s
 //  4 회원가입 → 회원가입 1 / 2
-export default function LoginScreen({ initialEmail = '' }: Props) {
-  const [email, setEmail] = useState(initialEmail);
+export default function LoginScreen({ initialUserId = '' }: Props) {
+  const [userId, setUserId] = useState(initialUserId);
   const [password, setPassword] = useState('');
   const [failCount, setFailCount] = useState(0);
   const passwordRef = useRef<TextInputInstance>(null);
   const { toast, show } = useToast(2400);
   const login = useLogin();
 
-  const canSubmit = !!email.trim() && !!password && !login.isPending;
+  const canSubmit = !!userId.trim() && !!password && !login.isPending;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    login.mutate({ email: email.trim(), password }, { onError: () => setFailCount((n) => n + 1) });
+    login.mutate(
+      { userId: userId.trim(), password },
+      { onError: () => setFailCount((n) => n + 1) },
+    );
   };
 
   const handlePasswordChange = (value: string) => {
@@ -55,14 +58,14 @@ export default function LoginScreen({ initialEmail = '' }: Props) {
       overlay={<Toast toast={toast} top={PORTRAIT_SCREEN.topBarY} />}
     >
       <TextField
-        label="이메일"
-        placeholder="haneul07@star.com"
-        value={email}
-        onChangeText={(v) => setEmail(v.trim())}
-        keyboardType="email-address"
+        label="아이디"
+        placeholder="haneul07"
+        value={userId}
+        onChangeText={(v) => setUserId(v.trim())}
         autoCapitalize="none"
-        autoComplete="email"
-        textContentType="emailAddress"
+        autoCorrect={false}
+        autoComplete="username"
+        textContentType="username"
         returnKeyType="next"
         submitBehavior="submit"
         onSubmitEditing={() => passwordRef.current?.focus()}
@@ -90,7 +93,7 @@ export default function LoginScreen({ initialEmail = '' }: Props) {
       />
 
       <SocialLoginRow
-        onPress={(name) => show(`${name} 로그인은 준비 중이에요. 이메일로 로그인해 주세요`)}
+        onPress={(name) => show(`${name} 로그인은 준비 중이에요. 아이디로 로그인해 주세요`)}
       />
 
       <View style={styles.signupRow}>

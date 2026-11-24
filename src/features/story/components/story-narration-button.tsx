@@ -15,6 +15,7 @@ type Props = {
   generationMessage?: string;
   generating?: boolean;
   onGenerationRetry?: () => Promise<void>;
+  onGenerate?: () => Promise<void>;
 };
 
 export default function StoryNarrationButton(props: Props) {
@@ -34,6 +35,7 @@ function NarrationControl({
   generationMessage,
   generating,
   onGenerationRetry,
+  onGenerate,
 }: Props & {
   onRetry: () => void;
 }) {
@@ -49,7 +51,10 @@ function NarrationControl({
     let cancelled = false;
 
     void Promise.resolve()
-      .then(() => {
+      .then(async () => {
+        if (Platform.OS !== 'web') {
+          await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+        }
         if (!cancelled) player.play();
       })
       .catch(() => {
@@ -97,7 +102,7 @@ function NarrationControl({
 
   const failed = actionError || Boolean(status.error);
   const loading = Boolean(uri) && !failed && !status.isLoaded;
-  const disabled = !uri || loading || busy;
+  const disabled = (!uri && (!onGenerate || Boolean(generating))) || loading || busy;
 
   const togglePlayback = async () => {
     if (failed) {
@@ -106,6 +111,11 @@ function NarrationControl({
     }
 
     if (disabled) return;
+
+    if (!uri) {
+      await onGenerate?.();
+      return;
+    }
 
     try {
       if (player.playing) {
@@ -167,7 +177,7 @@ function NarrationControl({
         <Text accessibilityRole="alert" maxFontSizeMultiplier={1.2} style={styles.message}>
           음성을 재생하지 못했어요. ↻를 눌러 다시 불러와 주세요.
         </Text>
-      ) : !uri ? (
+      ) : !uri && (generating || onGenerationRetry || !onGenerate) ? (
         <View style={styles.message}>
           <Text accessibilityLiveRegion="polite" style={styles.notice}>
             {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}
@@ -181,7 +191,7 @@ function NarrationControl({
               <Text style={styles.action}>다시 확인</Text>
             </Pressable>
           ) : null}
-          {generationMessage && !generating ? (
+          {onGenerationRetry && generationMessage && !generating ? (
             <Pressable
               accessibilityRole="button"
               hitSlop={8}

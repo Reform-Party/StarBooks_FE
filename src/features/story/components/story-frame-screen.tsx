@@ -22,9 +22,7 @@ import { PAPER, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { RADIUS, SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
-import { useSettingsStore } from '@/features/settings/store/settings-store';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
-import PageTurnSound from '@/features/story/components/page-turn-sound';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
 import type { StoryNarration } from '@/features/story/hooks/use-story-narration';
@@ -68,7 +66,6 @@ export default function StoryFrameScreen({
   onCommentary,
   narration,
 }: Props) {
-  const sfxOn = useSettingsStore((s) => s.sfx);
   const [activeSentence, setActiveSentence] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
@@ -147,7 +144,7 @@ export default function StoryFrameScreen({
         setIndex(nextIndex);
         setTurnTarget(null);
         turnLock.current = false;
-        setAutoReadPage(continueReading && pages[nextIndex]?.ttsUrl ? nextIndex : null);
+        setAutoReadPage(continueReading ? nextIndex : null);
         setTurning(false);
         // 각도는 다음 이동을 시작할 때 초기화해요. 이전 내용이 다시 보이지 않게 해요.
       });
@@ -184,7 +181,6 @@ export default function StoryFrameScreen({
 
   return (
     <Stage>
-      {turning && sfxOn ? <PageTurnSound /> : null}
       <View
         style={StyleSheet.absoluteFill}
         pointerEvents={vocabOpen || turning ? 'none' : 'auto'}
@@ -237,6 +233,29 @@ export default function StoryFrameScreen({
                 {writing && !turning ? <Text style={styles.caret}> ▍</Text> : null}
               </Text>
             </ScrollView>
+            {!turning && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
+              <View style={styles.completionActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="메인으로"
+                  onPress={onHome}
+                  style={({ pressed }) => [styles.completionHome, pressed && styles.pressedButton]}
+                >
+                  <Icon name="home" color={PAPER.ink} scale={0.8} />
+                  <Text maxFontSizeMultiplier={1.2} style={styles.completionHomeText}>
+                    메인으로
+                  </Text>
+                </Pressable>
+                {onCommentary ? (
+                  <JellyButton
+                    label="동화 해설"
+                    height={40}
+                    onPress={onCommentary}
+                    style={styles.completionCommentary}
+                  />
+                ) : null}
+              </View>
+            ) : null}
             <Text style={styles.pageNo}>
               {textPage?.page ?? index + 1} / {totalPages || '…'}
             </Text>
@@ -339,23 +358,25 @@ export default function StoryFrameScreen({
           <Icon name="chevronLeft" scale={0.8} />
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={hasNext && !canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
-          accessibilityState={{ disabled: !canNext || turning }}
-          disabled={!canNext || turning}
-          onPress={() => movePage(1)}
-          style={({ pressed }) => [
-            styles.pageButton,
-            styles.nextButton,
-            (!canNext || turning) && styles.disabledButton,
-            pressed && styles.pressedButton,
-          ]}
-        >
-          <View style={styles.rightArrow} pointerEvents="none">
-            <Icon name="chevronLeft" scale={0.8} />
-          </View>
-        </Pressable>
+        {hasNext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={!canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
+            accessibilityState={{ disabled: !canNext || turning }}
+            disabled={!canNext || turning}
+            onPress={() => movePage(1)}
+            style={({ pressed }) => [
+              styles.pageButton,
+              styles.nextButton,
+              (!canNext || turning) && styles.disabledButton,
+              pressed && styles.pressedButton,
+            ]}
+          >
+            <View style={styles.rightArrow} pointerEvents="none">
+              <Icon name="chevronLeft" scale={0.8} />
+            </View>
+          </Pressable>
+        ) : null}
 
         {onRetry ? (
           <View style={styles.retryButton}>
@@ -386,23 +407,25 @@ export default function StoryFrameScreen({
           <StoryNarrationButton
             key={`${index}:${page?.ttsUrl ?? 'empty'}`}
             uri={page?.ttsUrl ?? null}
-            generationMessage={narration?.message}
+            generationMessage={
+              [narration?.message, narration?.diagnostics].filter(Boolean).join('\n') || undefined
+            }
             generating={narration?.pending}
             onGenerationRetry={narration?.onRetry}
+            onGenerate={
+              narration?.onRequest
+                ? async () => {
+                    setAutoReadPage(index);
+                    await narration.onRequest?.();
+                  }
+                : undefined
+            }
             autoStart={autoReadPage === index}
             onFinished={handleNarrationFinished}
             onProgress={handleNarrationProgress}
           />
         ) : null}
 
-        {onCommentary && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
-          <JellyButton
-            label="관계도 보러 가기"
-            height={36}
-            onPress={onCommentary}
-            style={styles.commentaryButton}
-          />
-        ) : null}
         <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.home} />
       </View>
 
@@ -484,7 +507,27 @@ const styles = StyleSheet.create({
     left: SCREEN.homeButtonX - 104,
   },
   highlight: { backgroundColor: STAR.yellow.rim },
-  commentaryButton: { position: 'absolute', right: 104, bottom: 12 },
+  completionActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: -12,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  completionHome: {
+    flex: 1,
+    height: 40,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#B2AEC5',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  completionHomeText: { fontFamily: FONT.pop, fontSize: 16, color: PAPER.ink },
+  completionCommentary: { flex: 1, paddingHorizontal: 8 },
   header: {
     position: 'absolute',
     top: 14,

@@ -1,6 +1,6 @@
 import { fetch } from 'expo/fetch';
 
-import { API_URL, ApiError, authHeaders, notifyUnauthorized, toApiError } from '@/lib/api-client';
+import { API_URL, ApiError, authHeaders, request, toApiError } from '@/lib/api-client';
 
 export type SseMessage = { event: string; data: unknown };
 
@@ -8,7 +8,8 @@ export type SseMessage = { event: string; data: unknown };
 // Android 의 expo/fetch 는 OkHttp readTimeout 0 이라, 와이파이 ↔ LTE 전환 때 read() 가 끝나지 않아요.
 export const SSE_IDLE_TIMEOUT_MS = 30_000;
 
-const TIMEOUT_MESSAGE = '동화 서버가 응답하지 않아요. 다시 시도해 주세요';
+const TIMEOUT_MESSAGE =
+  '생성 결과를 아직 받지 못했어요. 다시 시도하면 같은 동화의 결과를 이어서 기다려요';
 const NETWORK_MESSAGE = '서버에 연결할 수 없어요';
 
 // "event: <이름>\ndata: <JSON>" 한 덩어리를 읽어요. 빈 줄 · 주석(:heartbeat)은 건너뛰어요.
@@ -33,16 +34,31 @@ function parseBlock(block: string): SseMessage | null {
 }
 
 type StreamOptions = {
-  body: unknown;
+  maxDurationMs?: number;
+  onStatus?: (status: number) => void;
+  idleTimeoutMs?: number;
+  body?: unknown;
+  method?: 'GET' | 'POST';
   signal?: AbortSignal;
-  onMessage: (message: SseMessage) => void;
+  onMessage: (message: SseMessage) => boolean | void;
 };
 
 // POST + Authorization 헤더가 필요해서 EventSource(GET 전용) 대신 fetch 스트림을 직접 읽어요.
 // RN 기본 fetch 는 본문을 스트림으로 주지 않아 expo/fetch 를 써요.
 // 스트림이 끝나면 resolve, 연결 · HTTP 오류 · 무응답이면 ApiError 로 reject 해요.
 // 부른 쪽이 취소하면 받은 오류를 그대로 던지니, 부른 쪽은 오류 이름 대신 자기 signal 로 취소인지 판단해요.
-export async function streamSse(path: string, { body, signal, onMessage }: StreamOptions) {
+export async function streamSse(
+  path: string,
+  {
+    body,
+    signal,
+    onMessage,
+    method = 'POST',
+    idleTimeoutMs = SSE_IDLE_TIMEOUT_MS,
+    maxDurationMs,
+    onStatus,
+  }: StreamOptions,
+) {
   // 부른 쪽의 취소와 무응답 타임아웃을 하나로 묶어요.
   const controller = new AbortController();
   const onAbort = () => controller.abort();
@@ -52,6 +68,14 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
   let timedOut = false;
   let cancelReader: (() => void) | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline =
+    maxDurationMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          timedOut = true;
+          cancelReader?.();
+          controller.abort();
+        }, maxDurationMs);
   // 무엇이든 받으면 타이머를 다시 맞춰요.
   const touch = () => {
     clearTimeout(timer);
@@ -59,7 +83,7 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
       timedOut = true;
       cancelReader?.();
       controller.abort();
-    }, SSE_IDLE_TIMEOUT_MS);
+    }, idleTimeoutMs);
   };
 
   // 취소 · 타임아웃 · 그 밖의 네트워크 오류를 나눠요.
@@ -80,16 +104,26 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
     let res;
     try {
       res = await fetch(`${API_URL}${path}`, {
-        method: 'POST',
+        method,
         signal: controller.signal,
         headers,
-        body: JSON.stringify(body),
+        body: method === 'GET' ? undefined : JSON.stringify(body),
       });
     } catch (e) {
       return fail(e);
     }
 
-    if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
+    onStatus?.(res.status);
+    if (res.status === 401 && 'Authorization' in headers) {
+      // 생성 경로의 접근 거절과 세션 만료를 구분해요.
+      // 프로필도 401일 때만 공용 API 클라이언트가 로그아웃시켜요.
+      await request('/api/users/profile', { signal: controller.signal });
+      throw new ApiError(
+        401,
+        'GENERATION_ACCESS_DENIED',
+        '로그인은 유지되고 있어요. 동화 생성 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요',
+      );
+    }
     if (!res.ok) throw await toApiError(res, '동화 만들기를 시작하지 못했어요');
     if (!res.body) throw new ApiError(res.status, 'NO_STREAM', '동화 만들기를 시작하지 못했어요');
 
@@ -115,7 +149,10 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
       while (sep !== -1) {
         const message = parseBlock(buffer.slice(0, sep));
         buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
-        if (message) onMessage(message);
+        if (message && onMessage(message) === true) {
+          await reader.cancel();
+          return;
+        }
         sep = buffer.search(/\r?\n\r?\n/);
       }
     }
@@ -127,6 +164,7 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
     throw e;
   } finally {
     clearTimeout(timer);
+    clearTimeout(deadline);
     signal?.removeEventListener('abort', onAbort);
   }
 }

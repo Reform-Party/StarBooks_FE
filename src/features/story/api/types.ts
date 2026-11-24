@@ -46,7 +46,10 @@ export type StoryEvent =
   | { event: 'meta'; data: StoryMeta }
   | { event: 'text'; data: { page: number; delta: string } }
   | { event: 'image'; data: { page: number; url: string } }
+  | { event: 'page'; data: StoryPage }
   // 글 3문장과 첫 3쪽 그림이 준비됐다는 신호 → 읽기 화면으로 넘어가요.
   | { event: 'ready'; data: { storyId: string } }
   | { event: 'done'; data: { story: Story } }
+  // 연결 종료 후 저장된 내용을 조회했지만 서버 완료 신호는 받지 못한 상태예요.
+  | { event: 'recovered'; data: { story: Story } }
   | { event: 'error'; data: { code?: string; message?: string } };

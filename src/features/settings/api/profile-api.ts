@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type { Gender } from '@/features/auth/api/types';
 import type {
   ApiGender,
@@ -36,12 +38,19 @@ const VOICE_UPLOAD_TIMEOUT_MS = REQUEST_TIMEOUT_MS * 3;
 // 목소리 학습 요청: 녹음한 .m4a 파일을 multipart 의 m4aFile 로 올려요. (서버가 .m4a 만 받아요)
 export async function uploadVoiceSample(fileUri: string): Promise<void> {
   const form = new FormData();
-  // RN 의 FormData 는 { uri, name, type } 객체로 파일을 붙여요.
-  form.append('m4aFile', {
-    uri: fileUri,
-    name: 'voice.m4a',
-    type: 'audio/mp4',
-  } as unknown as Blob);
+  if (Platform.OS === 'web') {
+    // 브라우저 FormData 는 { uri } 객체를 "[object Object]" 글자로 보내서 파일이 빠져요. (서버: GLOBAL_400_3)
+    // 녹음 결과(blob: 주소)를 Blob 으로 읽어 붙여요. 웹 녹음은 webm 이지만 서버가 이름으로만 검사하고 ffmpeg 가 내용을 읽어요.
+    const blob = await (await fetch(fileUri)).blob();
+    form.append('m4aFile', blob, 'voice.m4a');
+  } else {
+    // RN 의 FormData 는 { uri, name, type } 객체로 파일을 붙여요.
+    form.append('m4aFile', {
+      uri: fileUri,
+      name: 'voice.m4a',
+      type: 'audio/mp4',
+    } as unknown as Blob);
+  }
 
   await request<void>('/api/users/voice', {
     method: 'POST',

@@ -1,4 +1,4 @@
-import { Image } from 'react-native';
+import { Asset } from 'expo-asset';
 
 import { BACKGROUNDS, findOption, LESSONS, SPECIES } from '@/features/make/constants/story-options';
 import type { GenerateRequest, Story } from '@/features/story/api/types';
@@ -8,8 +8,8 @@ import type { GenerateRequest, Story } from '@/features/story/api/types';
 export const DUMMY_STORY_ID = 'dummy';
 
 // 삽화가 아직 없어서 밤하늘 배경을 그림 자리에 써요.
-const DUMMY_IMAGE =
-  Image.resolveAssetSource(require('@/assets/images/night-sky.webp'))?.uri ?? null;
+// react-native-web 의 Image 에는 resolveAssetSource 가 없어서, iOS · Android · 웹 모두 expo-asset 으로 주소를 얻어요.
+const DUMMY_IMAGE = Asset.fromModule(require('@/assets/images/night-sky.webp')).uri;
 
 export function buildDummyStory(request: GenerateRequest): Story {
   const lesson = findOption(LESSONS, request.morality)?.label ?? '소중한 마음';

@@ -140,8 +140,10 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
   };
 
   // 아직 한 쪽도 못 받았으면 더미로 대신하고, 읽던 중이면 오류 안내(다시 시도)를 보여 줘요.
-  const fail = (error: string) => {
-    if (!get().pages.length && get().request) showDummy();
+  // 4xx(요청 값 · 명세 차이 등)는 더미로 덮지 않고 오류 안내를 보여 줘요. (개발 중에 서버 문제를 놓치지 않게)
+  // 더미는 네트워크 · 시간 초과 · 5xx 일 때만이에요.
+  const fail = (error: string, cause?: unknown) => {
+    if (!isFatal(cause) && !get().pages.length && get().request) showDummy();
     else set({ status: 'error', error });
   };
 
@@ -217,7 +219,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
         if (signal.aborted) return;
         if (!done && isFatal(e)) {
           current.abort();
-          fail(e instanceof ApiError ? e.message : FALLBACK_ERROR);
+          fail(e instanceof ApiError ? e.message : FALLBACK_ERROR, e);
           return;
         }
       } finally {
@@ -247,7 +249,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     } catch (e) {
       if (current.signal.aborted) return;
       // TypeError 같은 내부 문구가 아이 화면에 보이지 않게, 서버 · 네트워크 오류 문구만 보여 줘요.
-      fail(e instanceof ApiError ? e.message : FALLBACK_ERROR);
+      fail(e instanceof ApiError ? e.message : FALLBACK_ERROR, e);
     } finally {
       if (controller === current) controller = null;
     }

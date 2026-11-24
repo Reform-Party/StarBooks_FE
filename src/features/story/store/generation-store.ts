@@ -84,11 +84,15 @@ const isReady = (pages: StoryPage[]) =>
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => {
+    const onAbort = () => {
       clearTimeout(timer);
       resolve();
-    });
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 
 // 4xx(토큰 만료 · 없는 동화 등)는 다시 연결해도 같아서 바로 실패로 봐요.
@@ -109,7 +113,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     return current;
   };
 
-  // 새 쪽이 하나라도 늘었으면 true
+  // 새 쪽이 늘었거나 그림이 새로 채워졌으면 true (글은 다 오고 그림만 늦게 오는 구간도 진행으로 봐요)
   const addPages = (incoming: StoryPage[]) => {
     if (!incoming.length) return false;
     const before = get().pages;
@@ -119,7 +123,8 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
       totalPages: pages.length + 1,
       ...(get().status === 'connecting' && isReady(pages) ? { status: 'ready' as const } : {}),
     });
-    return pages.length > before.length;
+    const images = (list: StoryPage[]) => list.filter((p) => p.imageUrl).length;
+    return pages.length > before.length || images(pages) > images(before);
   };
 
   // 연결이 끊긴 사이에 보낸 쪽은 SSE 로 다시 오지 않아서, 동화 조회로 채워요.
@@ -134,13 +139,15 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     }
   };
 
-  const finish = async (id: string, signal: AbortSignal) => {
+  // complete: done 을 받았는지. done 없이 새 쪽이 끊겨 끝낸 경우(추정 종료)는 false 예요.
+  const finish = async (id: string, signal: AbortSignal, complete: boolean) => {
     const story = await catchUp(id, signal);
     if (signal.aborted) return;
     if (story) {
       addPages(story.pages);
-      // 다 만든 동화는 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
-      queryClient.setQueryData(['story', id], story);
+      // done 을 받은 동화만 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
+      // 추정 종료면 뒷부분이 빠졌을 수 있어서 넣지 않고, 다음에 열 때 다시 조회해요. (use-story 는 staleTime: Infinity)
+      if (complete) queryClient.setQueryData(['story', id], story);
     }
     const { pages } = get();
     if (!pages.length) {
@@ -158,25 +165,34 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     for (;;) {
       let progressed = false;
       let done = false;
+      // 연결마다 따로 닫을 수 있게 해요. done 을 받으면 서버가 연결을 유지해도 이 연결만 닫고 바로 끝내요.
+      const round = new AbortController();
+      const stop = () => round.abort();
+      signal.addEventListener('abort', stop, { once: true });
       try {
         await subscribeStory(id, {
-          signal,
+          signal: round.signal,
           onEvent: (e) => {
             if (signal.aborted) return;
             if (e.event === 'page') progressed = addPages([toPage(e.data)]) || progressed;
-            if (e.event === 'done') done = true;
+            if (e.event === 'done') {
+              done = true;
+              round.abort();
+            }
           },
         });
       } catch (e) {
         if (signal.aborted) return;
-        if (isFatal(e)) {
+        if (!done && isFatal(e)) {
           current.abort();
           set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
           return;
         }
+      } finally {
+        signal.removeEventListener('abort', stop);
       }
       if (signal.aborted) return;
-      if (done) return finish(id, signal);
+      if (done) return finish(id, signal, true);
 
       const story = await catchUp(id, signal);
       if (signal.aborted) return;
@@ -184,7 +200,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
 
       idleRounds = progressed ? 0 : idleRounds + 1;
       if (idleRounds >= MAX_IDLE_ROUNDS || Date.now() - startedAt > MAX_WAIT_MS) {
-        if (get().pages.length) return finish(id, signal);
+        if (get().pages.length) return finish(id, signal, false);
         set({ status: 'error', error: LOST_ERROR });
         return;
       }

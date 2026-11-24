@@ -44,12 +44,15 @@ type StreamOptions = {
 export async function streamSse(path: string, { signal, onMessage }: StreamOptions) {
   // 부른 쪽의 취소와 무응답 타임아웃을 하나로 묶어요.
   const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  if (signal?.aborted) controller.abort();
-  else signal?.addEventListener('abort', onAbort);
-
   let timedOut = false;
   let cancelReader: (() => void) | null = null;
+  // 부른 쪽이 닫으면 읽던 스트림도 같이 닫아요. (reader.cancel() 은 아래 무응답 처리와 같은 이유)
+  const onAbort = () => {
+    cancelReader?.();
+    controller.abort();
+  };
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', onAbort);
   let timer: ReturnType<typeof setTimeout> | undefined;
   // 무엇이든 받으면 타이머를 다시 맞춰요.
   const touch = () => {
@@ -107,6 +110,8 @@ export async function streamSse(path: string, { signal, onMessage }: StreamOptio
         const message = parseBlock(buffer.slice(0, sep));
         buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
         if (message) onMessage(message);
+        // onMessage 안에서 닫았으면(done 등) 다음 read() 를 기다리지 않아요.
+        if (signal?.aborted) return fail(null);
         sep = buffer.search(/\r?\n\r?\n/);
       }
     }

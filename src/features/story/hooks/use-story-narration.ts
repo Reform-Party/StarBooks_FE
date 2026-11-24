@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused } from 'expo-router';
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
@@ -22,6 +22,9 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
   const [requested, setRequested] = useState<{ id: string; at: number } | null>(null);
   const requestedAt = requested?.id === id ? requested.at : null;
   const requestLock = useRef(false);
+  const refreshDetail = useRef(false);
+  const queryClient = useQueryClient();
+  const resultKey = ['story-narration-result', id, story?.pages.map((page) => page.paragraphId)];
   const generation = useQuery({
     queryKey: ['story-narration-request', id],
     queryFn: () => requestNarration(id!),
@@ -31,12 +34,21 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
     retry: false,
   });
   const completion = useQuery({
-    queryKey: ['story-narration-result', id, story?.pages.map((page) => page.paragraphId)],
+    queryKey: resultKey,
     queryFn: async ({ signal }) => {
-      // 문단 ID를 생략하는 기존 서버에서는 상세 URL 갱신으로 완료를 확인해요.
-      const latest = story!.pages.some((page) => !page.paragraphId && !page.ttsUrl)
-        ? await fetchStory(id!, signal)
-        : story!;
+      const previous = queryClient.getQueryData<{ pages: StoryPage[] }>(resultKey);
+      const pages = story!.pages.map((page) => {
+        const cached = previous?.pages.find(
+          (item) => item.page === page.page && item.paragraphId === page.paragraphId,
+        );
+        return page.ttsUrl || !cached?.ttsUrl ? page : { ...page, ttsUrl: cached.ttsUrl };
+      });
+      // 첫 진입에는 방금 조회한 상세를 사용해요. 클릭 확인·생성 후에만 다시 조회해요.
+      const latest =
+        (requestedAt !== null || refreshDetail.current) &&
+        pages.some((page) => !page.paragraphId && !page.ttsUrl)
+          ? await fetchStory(id!, signal)
+          : { ...story!, pages };
       return {
         pages: await Promise.all(latest.pages.map((page) => fetchNarration(page, signal))),
         checkedAt: Date.now(),
@@ -67,6 +79,7 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
   const handleRequest = async () => {
     if (!id || !story || pending || requestLock.current) return;
     requestLock.current = true;
+    refreshDetail.current = true;
     try {
       // 응답 유실이나 재진입 시에도 기존 음성을 먼저 조회해 중복 생성을 막아요.
       const result = await completion.refetch({ cancelRefetch: false });
@@ -75,6 +88,7 @@ export function useStoryNarration(id: string | null, story?: Story, canGenerate 
       if (!generation.isSuccess) await generation.refetch({ cancelRefetch: false });
       await completion.refetch();
     } finally {
+      refreshDetail.current = false;
       requestLock.current = false;
     }
   };

@@ -59,11 +59,15 @@ export const generateStory = (body: GenerateRequest, { signal, onEvent }: Genera
 const STORY_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const isValidStoryId = (id: unknown): id is string => isStr(id) && STORY_ID_RE.test(id);
 
+export const isNumericStoryId = (id: unknown): id is string =>
+  typeof id === 'string' && /^[1-9]\d*$/.test(id);
+
 type FairytaleDetailDto = {
   fairytaleId: number;
   title: string;
   authorName: string;
   paragraphs: {
+    paragraphId?: number;
     page: number;
     sentences: string[];
     imageUrl: string | null;
@@ -77,18 +81,22 @@ type FairytaleDetailDto = {
   }[];
 };
 
-export async function fetchStory(id: string): Promise<Story> {
-  if (!/^[1-9]\d*$/.test(id)) {
+export async function fetchStory(id: string, signal?: AbortSignal): Promise<Story> {
+  if (!isNumericStoryId(id)) {
     throw new Error('동화 번호가 올바르지 않아요.');
   }
 
-  const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`);
+  const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`, {
+    signal,
+    verifySessionOnUnauthorized: true,
+  });
 
   return {
     id: String(data.fairytaleId),
     title: data.title,
     authorName: data.authorName,
     pages: data.paragraphs.map((paragraph) => ({
+      paragraphId: paragraph.paragraphId,
       page: paragraph.page,
       text: paragraph.sentences.join('\n'),
       sentences: paragraph.sentences,

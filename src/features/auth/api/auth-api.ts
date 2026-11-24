@@ -1,5 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
-
 import {
   type LoginBody,
   type SignupBody,
@@ -9,6 +7,7 @@ import {
 } from '@/features/auth/api/types';
 import { fetchProfile } from '@/features/settings/api/profile-api';
 import { ApiError, requestWithHeaders, setAccessToken } from '@/lib/api-client';
+import * as SecureStorage from '@/lib/secure-storage';
 
 const LOGIN_PATH = '/api/auth/login';
 // 서버 경로는 sign-up 이에요. (signup 아님)
@@ -30,7 +29,7 @@ async function startSession(headers: Headers, userId: string, failMessage: strin
   if (!token) throw new ApiError(500, 'NO_TOKEN', failMessage);
 
   await setAccessToken(token);
-  await SecureStore.setItemAsync(USER_ID_KEY, userId);
+  await SecureStorage.setItem(USER_ID_KEY, userId);
   try {
     return await fetchMe();
   } catch (e) {
@@ -71,7 +70,7 @@ export const SIGNED_UP_WITHOUT_SESSION = 'SIGNED_UP_WITHOUT_SESSION';
 
 // 로그인 응답에 유저 정보가 없어서, 프로필(GET /api/users/profile)과 기기에 둔 아이디로 만들어요.
 export async function fetchMe(): Promise<User> {
-  const id = await SecureStore.getItemAsync(USER_ID_KEY);
+  const id = await SecureStorage.getItem(USER_ID_KEY);
   // 아이디 저장 전에 로그인해 토큰만 남은 기기예요. 프로필 사진이 user.id 로 저장돼서
   // 빈 아이디로 두면 이런 계정끼리 섞여요. 401 로 던져 restore 가 토큰을 지우고 다시 로그인하게 해요.
   if (!id) throw new ApiError(401, 'NO_USER_ID', '다시 로그인해 주세요');
@@ -81,5 +80,5 @@ export async function fetchMe(): Promise<User> {
 
 export async function logout() {
   await setAccessToken(null);
-  await SecureStore.deleteItemAsync(USER_ID_KEY);
+  await SecureStorage.removeItem(USER_ID_KEY);
 }

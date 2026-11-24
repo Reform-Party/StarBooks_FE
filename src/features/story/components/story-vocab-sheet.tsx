@@ -5,7 +5,7 @@ import {
   Easing,
   Platform,
   Pressable,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -89,33 +89,36 @@ export default function StoryVocabSheet({ vocab, onClose }: Props) {
           </Pressable>
         </View>
 
-        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          {vocab.length === 0 ? (
+        <FlatList
+          data={vocab}
+          keyExtractor={(entry) => String(entry.wordEntryId)}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
             <Text maxFontSizeMultiplier={1.2} style={styles.empty}>
               아직 등록된 단어가 없어요.
             </Text>
-          ) : (
-            vocab.map((entry) => (
-              <View key={entry.wordEntryId} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text maxFontSizeMultiplier={1.2} style={styles.word}>
-                    {entry.word}
-                  </Text>
-
-                  <View style={styles.pageBadge}>
-                    <Text maxFontSizeMultiplier={1.2} style={styles.page}>
-                      {entry.pageNo}쪽
-                    </Text>
-                  </View>
-                </View>
-
-                <Text maxFontSizeMultiplier={1.2} style={styles.meaning}>
-                  {entry.meaning}
+          }
+          renderItem={({ item: entry }) => (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text maxFontSizeMultiplier={1.2} style={styles.word}>
+                  {entry.word}
                 </Text>
+
+                <View style={styles.pageBadge}>
+                  <Text maxFontSizeMultiplier={1.2} style={styles.page}>
+                    {entry.pageNo}쪽
+                  </Text>
+                </View>
               </View>
-            ))
+
+              <Text maxFontSizeMultiplier={1.2} style={styles.meaning}>
+                {entry.meaning}
+              </Text>
+            </View>
           )}
-        </ScrollView>
+        />
       </Animated.View>
     </View>
   );

@@ -40,7 +40,12 @@
           "initialOrientation": "DEFAULT"
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "목소리로 동화를 읽어 주려면 마이크를 써야 해요."
+        }
+      ],
       [
         "expo-image-picker",
         {

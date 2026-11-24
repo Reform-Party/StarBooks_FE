@@ -67,6 +67,7 @@ type FairytaleDetailDto = {
   title: string;
   authorName: string;
   paragraphs: {
+    paragraphId?: number;
     page: number;
     sentences: string[];
     imageUrl: string | null;
@@ -87,6 +88,7 @@ export async function fetchStory(id: string, signal?: AbortSignal): Promise<Stor
 
   const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`, {
     signal,
+    verifySessionOnUnauthorized: true,
   });
 
   return {
@@ -94,6 +96,7 @@ export async function fetchStory(id: string, signal?: AbortSignal): Promise<Stor
     title: data.title,
     authorName: data.authorName,
     pages: data.paragraphs.map((paragraph) => ({
+      paragraphId: paragraph.paragraphId,
       page: paragraph.page,
       text: paragraph.sentences.join('\n'),
       sentences: paragraph.sentences,

@@ -4,6 +4,7 @@ import Svg, { Line } from 'react-native-svg';
 import JellyStar from '@/components/ui/jelly-star';
 import { STAR } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
+import { STORY_STAR_ICON_SIZE } from '@/features/explore/components/story-star';
 
 type Point = {
   x: number;
@@ -17,7 +18,7 @@ type Props = {
   hasNext: boolean;
 };
 
-const PREVIEW_SIZE = 72.48;
+const PREVIEW_SIZE = STORY_STAR_ICON_SIZE;
 const PREVIEW_HEIGHT = PREVIEW_SIZE * (34.2436 / 35.4151);
 const EDGE_Y = 260;
 

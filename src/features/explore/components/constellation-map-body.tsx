@@ -8,7 +8,7 @@ import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
 import ConstellationEdgeHints from '@/features/explore/components/constellation-edge-hints';
-import { STORY_STAR_SIZE } from '@/features/explore/components/story-star';
+import { STORY_STAR_SIZE, STORY_STAR_ICON_SIZE } from '@/features/explore/components/story-star';
 import { STORY_POSITIONS as POSITIONS } from '@/features/explore/constants/constellation';
 import {
   useConstellationPagination,
@@ -121,7 +121,7 @@ export default function ConstellationMapBody<T extends StorySummary>({
                   renderStar(story)
                 ) : (
                   <View style={styles.emptyStar}>
-                    <JellyStar size={72.48} color={tone} />
+                    <JellyStar size={STORY_STAR_ICON_SIZE} color={tone} />
                   </View>
                 )}
               </View>

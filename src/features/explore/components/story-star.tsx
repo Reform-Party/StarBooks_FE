@@ -13,6 +13,7 @@ type Props = {
 };
 
 export const STORY_STAR_SIZE = 76;
+export const STORY_STAR_ICON_SIZE = 72.48;
 
 function splitTitle(title: string): string[] {
   const words = title.trim().split(/\s+/);
@@ -47,7 +48,7 @@ export default function StoryStar({ story, onPress, authorName, color = 'yellow'
       style={({ pressed }) => [styles.root, pressed && styles.pressed]}
     >
       <View pointerEvents="none" accessible={false}>
-        <JellyStar size={72.48} color={color} />
+        <JellyStar size={STORY_STAR_ICON_SIZE} color={color} />
       </View>
 
       <View pointerEvents="none" style={[styles.titleBox, authorName && styles.sharedTitleBox]}>

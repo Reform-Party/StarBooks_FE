@@ -6,7 +6,8 @@ import type { GenerateRequest, StoryEvent, StoryMeta, StoryPage } from '@/featur
 import { ApiError, notifyUnauthorized } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
-export type GenerationStatus = 'idle' | 'connecting' | 'streaming' | 'ready' | 'done' | 'error';
+export type GenerationStatus =
+  'idle' | 'connecting' | 'streaming' | 'ready' | 'done' | 'recovered' | 'error';
 
 type GenerationData = {
   status: GenerationStatus;
@@ -68,6 +69,11 @@ function reduce(state: GenerationData, e: StoryEvent): Partial<GenerationData> {
       };
     case 'meta':
       return { meta: e.data };
+    case 'page':
+      return {
+        pages: updatePage(state.pages, e.data.page, () => e.data),
+        totalPages: Math.max(state.totalPages, e.data.page),
+      };
     case 'text':
       return {
         pages: updatePage(state.pages, e.data.page, (p) => ({ text: p.text + e.data.delta })),
@@ -76,10 +82,11 @@ function reduce(state: GenerationData, e: StoryEvent): Partial<GenerationData> {
       return { pages: updatePage(state.pages, e.data.page, () => ({ imageUrl: e.data.url })) };
     case 'ready':
       return state.status === 'streaming' ? { status: 'ready' } : {};
-    case 'done': {
+    case 'done':
+    case 'recovered': {
       const { pages } = e.data.story;
       // 최종 쪽수가 처음 알려 준 것과 달라도 "다음" 이 "쓰는 중…" 으로 남지 않게 맞춰요.
-      return { status: 'done', pages, totalPages: pages.length };
+      return { status: e.event, pages, totalPages: pages.length };
     }
     case 'error':
       return { status: 'error', error: e.data.message ?? FALLBACK_ERROR };

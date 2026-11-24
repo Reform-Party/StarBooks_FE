@@ -6,7 +6,8 @@ import type { GenerateRequest, StoryEvent, StoryMeta, StoryPage } from '@/featur
 import { ApiError, notifyUnauthorized } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
-export type GenerationStatus = 'idle' | 'connecting' | 'streaming' | 'ready' | 'done' | 'error';
+export type GenerationStatus =
+  'idle' | 'connecting' | 'streaming' | 'ready' | 'done' | 'recovered' | 'error';
 
 type GenerationData = {
   status: GenerationStatus;
@@ -17,6 +18,7 @@ type GenerationData = {
   meta: StoryMeta | null;
   pages: StoryPage[];
   error: string | null;
+  progress: Partial<Record<'post' | 'sse' | 'detail', string>>;
 };
 
 type GenerationState = GenerationData & {
@@ -33,6 +35,7 @@ const INITIAL: GenerationData = {
   meta: null,
   pages: [],
   error: null,
+  progress: {},
 };
 
 const FALLBACK_ERROR = '동화를 만들지 못했어요';
@@ -68,6 +71,11 @@ function reduce(state: GenerationData, e: StoryEvent): Partial<GenerationData> {
       };
     case 'meta':
       return { meta: e.data };
+    case 'page':
+      return {
+        pages: updatePage(state.pages, e.data.page, () => e.data),
+        totalPages: Math.max(state.totalPages, e.data.page),
+      };
     case 'text':
       return {
         pages: updatePage(state.pages, e.data.page, (p) => ({ text: p.text + e.data.delta })),
@@ -76,10 +84,11 @@ function reduce(state: GenerationData, e: StoryEvent): Partial<GenerationData> {
       return { pages: updatePage(state.pages, e.data.page, () => ({ imageUrl: e.data.url })) };
     case 'ready':
       return state.status === 'streaming' ? { status: 'ready' } : {};
-    case 'done': {
+    case 'done':
+    case 'recovered': {
       const { pages } = e.data.story;
       // 최종 쪽수가 처음 알려 준 것과 달라도 "다음" 이 "쓰는 중…" 으로 남지 않게 맞춰요.
-      return { status: 'done', pages, totalPages: pages.length };
+      return { status: e.event, pages, totalPages: pages.length };
     }
     case 'error':
       return { status: 'error', error: e.data.message ?? FALLBACK_ERROR };
@@ -95,6 +104,25 @@ export const useGenerationStore = create<GenerationState>()((set, get) => ({
   ...INITIAL,
 
   start: async (request) => {
+    const previous = get();
+    // 확인 화면을 다시 열어 눌러도 진행 중인 요청을 취소하거나 새 POST를 만들지 않아요.
+    if (['connecting', 'streaming', 'ready'].includes(previous.status)) return;
+    if (
+      previous.status === 'error' &&
+      previous.request &&
+      isSameSelection(previous.request, request) &&
+      !previous.storyId
+    ) {
+      set({
+        error:
+          '이전 생성 요청의 동화 번호를 확인하지 못했어요. 중복 생성을 막기 위해 책장에서 먼저 확인해 주세요.',
+      });
+      return;
+    }
+    const resumeId =
+      previous.status === 'error' && previous.request && isSameSelection(previous.request, request)
+        ? (previous.storyId ?? undefined)
+        : undefined;
     controller?.abort();
     const current = new AbortController();
     controller = current;
@@ -106,15 +134,20 @@ export const useGenerationStore = create<GenerationState>()((set, get) => ({
     try {
       await generateStory(request, {
         signal: current.signal,
+        resumeId,
+        onProgress: (phase, message) => {
+          if (!current.signal.aborted)
+            set((state) => ({ progress: { ...state.progress, [phase]: message } }));
+        },
         onEvent: (e) => {
           if (current.signal.aborted) return;
           if (e.event === 'error' && e.data.code && UNAUTHORIZED_CODES.has(e.data.code)) {
             notifyUnauthorized();
           }
           // 다 만든 동화는 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
-          if (e.event === 'done')
+          if (e.event === 'done' || e.event === 'recovered')
             queryClient.setQueryData(['story', e.data.story.id], e.data.story);
-          if (e.event === 'done' || e.event === 'error') finished = true;
+          if (e.event === 'done' || e.event === 'recovered' || e.event === 'error') finished = true;
           set(reduce(get(), e));
         },
       });

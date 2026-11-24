@@ -14,11 +14,20 @@ export default function StoryRoute() {
 
   // 만드는 중에 열린 화면은 나갈 때까지 live 로 둬요. ("다시 만들기" 로 storyId 가 비는 순간
   // 저장된 동화 분기로 바뀌어 방금 실패한 id 를 요청하지 않게)
-  const [openedLive] = useState(() => id != null && useGenerationStore.getState().storyId === id);
+  const [openedLive] = useState(() => {
+    const generation = useGenerationStore.getState();
+    return (
+      from !== 'bookshelf' &&
+      from !== 'travel' &&
+      id != null &&
+      generation.storyId === id &&
+      generation.status !== 'recovered'
+    );
+  });
   // 이 동화를 만들고 있을 때만 생성 상태를 구독해요. (저장된 동화를 볼 때 글자마다 리렌더되지 않게)
   const live = useGenerationStore(
     useShallow((s) =>
-      openedLive || (id != null && s.storyId === id)
+      openedLive && s.status !== 'recovered'
         ? {
             status: s.status,
             meta: s.meta,
@@ -33,7 +42,8 @@ export default function StoryRoute() {
   const reset = useGenerationStore((s) => s.reset);
   const saved = useStory((live && live.status !== 'done') || !id ? null : id);
   // 여행·출처 없는 진입에서는 기존 음성만 재생해요. 소유권은 서버에서도 검증해야 해요.
-  const canGenerate = from !== 'travel' && (from === 'bookshelf' || openedLive);
+  const canGenerate =
+    from !== 'travel' && (from === 'bookshelf' || from === 'generated' || openedLive);
   const narration = useStoryNarration(isNumericStoryId(id) ? id : null, saved.data, canGenerate);
 
   if (live) {
@@ -41,6 +51,8 @@ export default function StoryRoute() {
     return (
       <StoryFrameScreen
         title={live.meta?.title ?? null}
+        authorName={saved.data?.authorName}
+        vocab={saved.data?.vocab}
         pages={narration.pages ?? live.pages}
         narration={narration}
         totalPages={live.totalPages}

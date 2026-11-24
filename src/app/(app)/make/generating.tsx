@@ -4,38 +4,22 @@ import { useEffect } from 'react';
 import { missingSteps } from '@/features/make/constants/story-options';
 import { useMakeStore } from '@/features/make/store/make-store';
 import GeneratingScreen from '@/features/story/components/generating-screen';
-import { isSameSelection, useGenerationStore } from '@/features/story/store/generation-store';
-import { buildGenerateRequest } from '@/features/story/utils/build-generate-request';
+import { useGenerationStore } from '@/features/story/store/generation-store';
 
 export default function GeneratingRoute() {
   const selection = useMakeStore((s) => s.selection);
   const status = useGenerationStore((s) => s.status);
   const storyId = useGenerationStore((s) => s.storyId);
   const error = useGenerationStore((s) => s.error);
-  const start = useGenerationStore((s) => s.start);
   const retry = useGenerationStore((s) => s.retry);
   const reset = useGenerationStore((s) => s.reset);
   const missing = missingSteps(selection).length > 0;
 
-  // 들어오면 생성을 요청해요. 같은 선택으로 만들고 있으면("다시 만들기" 등) 그대로 잇고,
-  // 선택이 바뀌었거나 이미 다 만든 뒤면 새로 시작해요.
-  useEffect(() => {
-    if (missing) return;
-    const request = buildGenerateRequest(selection);
-    const { status: current, request: running } = useGenerationStore.getState();
-    // 실패한 뒤 다시 들어오면 이전 오류를 보여 주지 않고 새로 요청해요.
-    const inFlight = current === 'connecting' || current === 'streaming' || current === 'ready';
-    if (inFlight && running && isSameSelection(running, request)) return;
-    void start(request);
-  }, [missing, selection, start]);
-
-  // 준비 신호가 오면 읽기 화면으로 넘어가요. 스트림은 스토어에서 계속 이어져요.
-  // 렌더 때 값이 아니라 지금 스토어 값을 봐요. 위 effect 가 같은 커밋에서 새로 시작했으면
-  // 렌더 때 값은 이전 동화라서, 그대로 쓰면 이전 동화로 넘어가요.
+  // 생성 POST는 확인 화면의 명시적인 버튼에서만 시작해요. 재진입/Reload는 재전송하지 않아요.
   useEffect(() => {
     const { status: now, storyId: id } = useGenerationStore.getState();
-    if ((now === 'ready' || now === 'done') && id) {
-      router.replace({ pathname: '/story/[id]', params: { id } });
+    if ((now === 'ready' || now === 'done' || now === 'recovered') && id) {
+      router.replace({ pathname: '/story/[id]', params: { id, from: 'generated' } });
     }
   }, [status, storyId]);
 
@@ -43,7 +27,13 @@ export default function GeneratingRoute() {
 
   return (
     <GeneratingScreen
-      error={status === 'error' ? error : null}
+      error={
+        status === 'idle'
+          ? '진행 중인 동화 번호를 확인할 수 없어요. 책장에서 생성 결과를 확인해 주세요.'
+          : status === 'error'
+            ? error
+            : null
+      }
       onRetry={retry}
       onHome={() => {
         reset();

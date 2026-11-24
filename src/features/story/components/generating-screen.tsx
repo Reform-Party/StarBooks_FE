@@ -39,7 +39,7 @@ export default function GeneratingScreen({ error, onRetry, onHome }: Props) {
       </View>
       <View style={styles.heading} accessibilityLiveRegion="polite">
         <Text accessibilityRole="header" style={[TYPE.heading, styles.headingText]}>
-          {failed ? '동화를 만들지 못했어요' : '마법 같은 동화를 만들고 있어요'}
+          {failed ? '동화 결과를 확인하지 못했어요' : '마법 같은 동화를 만들고 있어요'}
         </Text>
         {failed ? null : <BlinkDots />}
       </View>
@@ -53,7 +53,7 @@ export default function GeneratingScreen({ error, onRetry, onHome }: Props) {
           </Text>
           <View style={styles.buttons}>
             <JellyButton tone="glass" label="메인으로" onPress={onHome} />
-            <JellyButton label="다시 시도" onPress={onRetry} />
+            <JellyButton label="결과 다시 확인" onPress={onRetry} />
           </View>
         </View>
       ) : (

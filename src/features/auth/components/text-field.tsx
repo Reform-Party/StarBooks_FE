@@ -63,6 +63,8 @@ export default function TextField({
           accessibilityLabel={label}
           placeholderTextColor={`${INK[3]}73`}
           selectionColor={STAR.yellow.c300}
+          // Android 가로 화면에서 키보드가 전체 화면 입력창으로 바뀌지 않고 앱 화면이 보이게 해요.
+          disableFullscreenUI
           secureTextEntry={secureTextEntry}
           onFocus={(e) => {
             setFocused(true);
@@ -91,8 +93,9 @@ export default function TextField({
 }
 
 const styles = StyleSheet.create({
-  field: { width: '100%', gap: 6 },
-  label: { ...TYPE.caption, fontFamily: FONT.sansSemi, color: INK[2] },
+  // Figma design: 라벨(14.5pt Bold) 아래 4pt 에 입력칸 40pt
+  field: { width: '100%', gap: 4 },
+  label: { ...TYPE.caption, fontFamily: FONT.sansSemi, lineHeight: 18, color: INK[2] },
   input: {
     height: 40,
     paddingHorizontal: 14,

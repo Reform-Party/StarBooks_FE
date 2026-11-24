@@ -37,7 +37,7 @@ export default function SharedConstellationMapScreen({
   const { totalElements } = pagination;
 
   return (
-    <Stage orientation="landscape">
+    <Stage>
       <View style={StyleSheet.absoluteFill}>
         <View pointerEvents="none" style={styles.header}>
           <Image

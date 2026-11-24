@@ -46,7 +46,7 @@ function ConstellationMapContent({
   const { totalElements } = pagination;
 
   return (
-    <Stage orientation="landscape">
+    <Stage>
       <View
         style={StyleSheet.absoluteFill}
         pointerEvents={isModalOpen ? 'none' : 'auto'}

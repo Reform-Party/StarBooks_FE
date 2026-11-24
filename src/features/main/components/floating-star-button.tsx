@@ -51,6 +51,8 @@ export default function FloatingStarButton({ label, tone, reverse, onPress }: Pr
         <JellyStar color={tone} size={STAR_SIZE} />
       </Animated.View>
       <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
         style={[
           TYPE.heading,
           styles.label,
@@ -64,6 +66,7 @@ export default function FloatingStarButton({ label, tone, reverse, onPress }: Pr
 }
 
 const styles = StyleSheet.create({
-  button: { width: 120, alignItems: 'center', gap: 18 },
+  // "동화 만들기" 가 Android 글꼴 폭에서 두 줄로 꺾이지 않게 폭을 넉넉히 둬요. (별 사이 간격은 main-screen 에서 맞춰요)
+  button: { width: 140, alignItems: 'center', gap: 18 },
   label: { textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 },
 });

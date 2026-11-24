@@ -34,7 +34,7 @@ export default function SharedStoriesScreen({ onHome, onSelectStory }: Props) {
 
   if (!API_URL || query.isPending || query.isError) {
     return (
-      <Stage orientation="landscape">
+      <Stage>
         <View style={styles.status}>
           <Text accessibilityRole="header" maxFontSizeMultiplier={1.2} style={styles.heading}>
             동화 여행

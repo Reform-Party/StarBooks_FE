@@ -43,7 +43,7 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
 
   if (!API_URL || query.isPending || query.isError) {
     return (
-      <Stage orientation="landscape">
+      <Stage>
         <View style={styles.status}>
           <Text maxFontSizeMultiplier={1.2} style={styles.heading}>
             {island.name}

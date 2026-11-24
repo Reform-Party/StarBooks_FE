@@ -25,6 +25,7 @@ import { TYPE } from '@/constants/typography';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
+import type { StoryNarration } from '@/features/story/hooks/use-story-narration';
 
 const PAPER_INK_2 = '#6B6790';
 
@@ -38,9 +39,13 @@ type Props = {
   streaming: boolean;
   // 불러오기 · 생성 실패 문구
   error: string | null;
-  // 생성 중 실패했을 때만 "다시 만들기" 를 보여 줘요.
+  // 생성 또는 조회 실패 시 호출하는 재시도 동작입니다.
   onRetry?: () => void;
+  retryLabel?: string;
+  retrying?: boolean;
   onHome: () => void;
+  onCommentary?: () => void;
+  narration?: StoryNarration;
 };
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.
@@ -55,8 +60,13 @@ export default function StoryFrameScreen({
   streaming,
   error,
   onRetry,
+  retryLabel = '다시 만들기',
+  retrying = false,
   onHome,
+  onCommentary,
+  narration,
 }: Props) {
+  const [activeSentence, setActiveSentence] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
   const [autoReadPage, setAutoReadPage] = useState<number | null>(null);
@@ -70,6 +80,25 @@ export default function StoryFrameScreen({
   const page = pages[index];
   const illustrationPage = turnTarget?.step === -1 ? pages[turnTarget.index] : page;
   const textPage = turnTarget?.step === 1 ? pages[turnTarget.index] : page;
+  const sentences = useMemo(() => page?.sentences ?? [page?.text ?? ''], [page]);
+  const handleNarrationProgress = useCallback(
+    (time: number, duration: number, playing: boolean) => {
+      if (!playing || duration <= 0) {
+        setActiveSentence(null);
+        return;
+      }
+      // API가 문장별 타임스탬프를 제공하기 전까지 문장 길이로 강조 구간을 추정해요.
+      const totalLength = sentences.reduce((sum, sentence) => sum + sentence.length, 0);
+      const position = Math.min(time / duration, 1) * totalLength;
+      let end = 0;
+      const active = sentences.findIndex((sentence) => {
+        end += sentence.length;
+        return position < end;
+      });
+      setActiveSentence(active < 0 ? null : active);
+    },
+    [sentences],
+  );
   const progress = totalPages > 0 && page ? Math.min((index + 1) / totalPages, 1) : 0;
   // 다음 쪽은 글이 한 글자라도 도착해야 넘길 수 있어요.
   const hasNext = index < totalPages - 1;
@@ -97,6 +126,7 @@ export default function StoryFrameScreen({
 
       turnLock.current = true;
       setTurning(true);
+      setActiveSentence(null);
       setAutoReadPage(null);
 
       setTurnTarget({ index: nextIndex, step });
@@ -114,7 +144,7 @@ export default function StoryFrameScreen({
         setIndex(nextIndex);
         setTurnTarget(null);
         turnLock.current = false;
-        setAutoReadPage(continueReading && pages[nextIndex]?.ttsUrl ? nextIndex : null);
+        setAutoReadPage(continueReading ? nextIndex : null);
         setTurning(false);
         // 각도는 다음 이동을 시작할 때 초기화해요. 이전 내용이 다시 보이지 않게 해요.
       });
@@ -189,10 +219,43 @@ export default function StoryFrameScreen({
           <View style={[styles.leaf, styles.rightLeaf]}>
             <ScrollView key={textPage?.page ?? index} style={styles.bodyScroll}>
               <Text selectable style={styles.body}>
-                {textPage?.text}
+                {turning
+                  ? textPage?.text
+                  : sentences.map((sentence, sentenceIndex) => (
+                      <Text
+                        key={sentenceIndex}
+                        style={sentenceIndex === activeSentence ? styles.highlight : undefined}
+                      >
+                        {sentence}
+                        {sentenceIndex < sentences.length - 1 ? '\n' : ''}
+                      </Text>
+                    ))}
                 {writing && !turning ? <Text style={styles.caret}> ▍</Text> : null}
               </Text>
             </ScrollView>
+            {!turning && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
+              <View style={styles.completionActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="메인으로"
+                  onPress={onHome}
+                  style={({ pressed }) => [styles.completionHome, pressed && styles.pressedButton]}
+                >
+                  <Icon name="home" color={PAPER.ink} scale={0.8} />
+                  <Text maxFontSizeMultiplier={1.2} style={styles.completionHomeText}>
+                    메인으로
+                  </Text>
+                </Pressable>
+                {onCommentary ? (
+                  <JellyButton
+                    label="동화 해설"
+                    height={40}
+                    onPress={onCommentary}
+                    style={styles.completionCommentary}
+                  />
+                ) : null}
+              </View>
+            ) : null}
             <Text style={styles.pageNo}>
               {textPage?.page ?? index + 1} / {totalPages || '…'}
             </Text>
@@ -295,27 +358,29 @@ export default function StoryFrameScreen({
           <Icon name="chevronLeft" scale={0.8} />
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={hasNext && !canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
-          accessibilityState={{ disabled: !canNext || turning }}
-          disabled={!canNext || turning}
-          onPress={() => movePage(1)}
-          style={({ pressed }) => [
-            styles.pageButton,
-            styles.nextButton,
-            (!canNext || turning) && styles.disabledButton,
-            pressed && styles.pressedButton,
-          ]}
-        >
-          <View style={styles.rightArrow} pointerEvents="none">
-            <Icon name="chevronLeft" scale={0.8} />
-          </View>
-        </Pressable>
+        {hasNext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={!canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
+            accessibilityState={{ disabled: !canNext || turning }}
+            disabled={!canNext || turning}
+            onPress={() => movePage(1)}
+            style={({ pressed }) => [
+              styles.pageButton,
+              styles.nextButton,
+              (!canNext || turning) && styles.disabledButton,
+              pressed && styles.pressedButton,
+            ]}
+          >
+            <View style={styles.rightArrow} pointerEvents="none">
+              <Icon name="chevronLeft" scale={0.8} />
+            </View>
+          </Pressable>
+        ) : null}
 
         {onRetry ? (
           <View style={styles.retryButton}>
-            <JellyButton label="다시 만들기" height={36} onPress={onRetry} />
+            <JellyButton label={retryLabel} height={36} onPress={onRetry} disabled={retrying} />
           </View>
         ) : null}
         <View
@@ -342,8 +407,22 @@ export default function StoryFrameScreen({
           <StoryNarrationButton
             key={`${index}:${page?.ttsUrl ?? 'empty'}`}
             uri={page?.ttsUrl ?? null}
+            generationMessage={
+              [narration?.message, narration?.diagnostics].filter(Boolean).join('\n') || undefined
+            }
+            generating={narration?.pending}
+            onGenerationRetry={narration?.onRetry}
+            onGenerate={
+              narration?.onRequest
+                ? async () => {
+                    setAutoReadPage(index);
+                    await narration.onRequest?.();
+                  }
+                : undefined
+            }
             autoStart={autoReadPage === index}
             onFinished={handleNarrationFinished}
+            onProgress={handleNarrationProgress}
           />
         ) : null}
 
@@ -379,11 +458,21 @@ function StoryIllustration({
   }
 
   const waiting = streaming && !imageUrl;
+  if (!waiting) {
+    return (
+      <Image
+        source={require('@/assets/images/night-sky.webp')}
+        accessibilityLabel="기본 밤하늘 그림"
+        style={styles.illustration}
+        contentFit="cover"
+      />
+    );
+  }
 
   return (
     <View style={styles.skeleton}>
       <Text maxFontSizeMultiplier={1.2} style={[styles.skeletonText, { textAlign: 'center' }]}>
-        {waiting ? '그림을 그리는 중…' : '그림을 표시할 수 없어요.\n이야기는 계속 읽을 수 있어요.'}
+        그림을 그리는 중…
       </Text>
     </View>
   );
@@ -417,6 +506,28 @@ const styles = StyleSheet.create({
     top: SCREEN.topBarY,
     left: SCREEN.homeButtonX - 104,
   },
+  highlight: { backgroundColor: STAR.yellow.rim },
+  completionActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: -12,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  completionHome: {
+    flex: 1,
+    height: 40,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#B2AEC5',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  completionHomeText: { fontFamily: FONT.pop, fontSize: 16, color: PAPER.ink },
+  completionCommentary: { flex: 1, paddingHorizontal: 8 },
   header: {
     position: 'absolute',
     top: 14,

@@ -3,7 +3,7 @@
     "name": "star_books",
     "slug": "star_books",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "starbooks",
     "userInterfaceStyle": "automatic",

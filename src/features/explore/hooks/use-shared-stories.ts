@@ -14,6 +14,6 @@ export function useSharedStories(page: number) {
     enabled: Boolean(API_URL),
     retry: false,
     placeholderData: keepPreviousData,
-    gcTime: 0,
+    gcTime: 5 * 60 * 1000,
   });
 }

@@ -6,8 +6,8 @@ import { fetchStory } from '@/features/story/api/story-api';
 export function useStory(id: string | null) {
   return useQuery({
     queryKey: ['story', id],
-    queryFn: id == null ? skipToken : () => fetchStory(id),
-    // 다 만든 동화는 바뀌지 않아서, 캐시에 있으면 다시 요청하지 않아요.
-    staleTime: Infinity,
+    queryFn: id == null ? skipToken : ({ signal }) => fetchStory(id, signal),
+    // 생성 복구 직후에는 삽화나 음성이 추가될 수 있어 재진입할 때 서버 내용을 갱신해요.
+    staleTime: 0,
   });
 }

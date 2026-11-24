@@ -177,7 +177,7 @@ function NarrationControl({
         <Text accessibilityRole="alert" maxFontSizeMultiplier={1.2} style={styles.message}>
           음성을 재생하지 못했어요. ↻를 눌러 다시 불러와 주세요.
         </Text>
-      ) : !uri ? (
+      ) : !uri && (generating || onGenerationRetry || !onGenerate) ? (
         <View style={styles.message}>
           <Text accessibilityLiveRegion="polite" style={styles.notice}>
             {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}

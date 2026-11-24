@@ -88,6 +88,7 @@ export async function fetchStory(id: string, signal?: AbortSignal): Promise<Stor
 
   const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`, {
     signal,
+    verifySessionOnUnauthorized: true,
   });
 
   return {

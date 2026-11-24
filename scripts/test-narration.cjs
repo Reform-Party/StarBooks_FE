@@ -60,13 +60,22 @@ const page = { paragraphId: 42, page: 1, text: '동화', imageUrl: null };
   assert.equal(calls[0].headers.Authorization, 'Bearer test-token');
   calls = [];
   replies = [{ status: 204 }];
-  assert.equal((await api.fetchNarration({ ...page, ttsUrl: 'stale' })).ttsUrl, null);
+  assert.equal((await api.fetchNarration(page)).ttsUrl, null);
   assert.equal(calls.length, 1, 'missing narration must not fetch a file or generate');
+  calls = [];
+  replies = [
+    { status: 200, body: { isSuccess: true, code: 'SUCCESS_200', httpStatus: 204, data: false } },
+  ];
+  assert.equal((await api.fetchNarration(page)).ttsUrl, null);
+  assert.equal(calls.length, 1, 'data:false must not request a file even when HTTP is 200');
   replies = [{ status: 200 }, { status: 200, body: { paragraphId: 99, ttsUrl: 'wrong' } }];
   await assert.rejects(api.fetchNarration(page), /음성 파일/);
   replies = [{ status: 500, body: { message: 'server error' } }];
   await assert.rejects(api.fetchNarration(page), /server error/);
   calls = [];
+  const supplied = { ...page, paragraphId: undefined, ttsUrl: 'https://audio.invalid/ready.mp3' };
+  assert.equal((await api.fetchNarration(supplied)).ttsUrl, supplied.ttsUrl);
+  assert.equal(calls.length, 0, 'detail audio URL must play without paragraph lookup');
   assert.equal(
     (await api.fetchNarration({ ...page, paragraphId: undefined })).paragraphId,
     undefined,

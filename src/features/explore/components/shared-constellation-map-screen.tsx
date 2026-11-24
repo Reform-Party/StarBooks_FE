@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GlassIconButton from '@/components/ui/glass-icon-button';
 import Stage from '@/components/ui/stage';
+import ConstellationLoading from '@/features/explore/components/constellation-loading';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
@@ -20,6 +21,8 @@ type Props = {
   onSelectStory: (story: SharedStorySummary) => void;
   busy?: boolean;
   pagination: ConstellationPagination;
+  loading?: boolean;
+  paused?: boolean;
 };
 
 export default function SharedConstellationMapScreen({
@@ -28,6 +31,8 @@ export default function SharedConstellationMapScreen({
   onSelectStory,
   pagination,
   busy = false,
+  loading = false,
+  paused = false,
 }: Props) {
   const { totalElements } = pagination;
 
@@ -45,29 +50,33 @@ export default function SharedConstellationMapScreen({
             동화 여행
           </Text>
           <Text maxFontSizeMultiplier={1.2} style={styles.count}>
-            친구들이 만든 동화 {totalElements}편
+            {loading ? ' ' : `친구들이 만든 동화 ${totalElements}편`}
           </Text>
         </View>
 
         <GlassIconButton icon="home" label="메인으로" onPress={onHome} style={styles.homeButton} />
 
-        <ConstellationMapBody
-          stories={stories}
-          pagination={pagination}
-          tone="mint"
-          busy={busy}
-          maxPageDots={5}
-          emptyText="아직 공개된 동화가 없어요"
-          pageHint="옆으로 넘기면 전에 만든 동화가 있어요"
-          renderStar={(story) => (
-            <StoryStar
-              story={story}
-              authorName={story.authorName}
-              color="mint"
-              onPress={() => onSelectStory(story)}
-            />
-          )}
-        />
+        {loading ? (
+          <ConstellationLoading tone="mint" paused={paused} />
+        ) : (
+          <ConstellationMapBody
+            stories={stories}
+            pagination={pagination}
+            tone="mint"
+            busy={busy}
+            maxPageDots={5}
+            emptyText="아직 공개된 동화가 없어요"
+            pageHint="옆으로 넘기면 전에 만든 동화가 있어요"
+            renderStar={(story) => (
+              <StoryStar
+                story={story}
+                authorName={story.authorName}
+                color="mint"
+                onPress={() => onSelectStory(story)}
+              />
+            )}
+          />
+        )}
       </View>
     </Stage>
   );

@@ -28,10 +28,8 @@ const GENDER_OPTIONS: readonly SelectOption<Gender>[] = [
   { label: '여자', value: 'W' },
   { label: '남자', value: 'M' },
 ];
-// 목소리 등록 때 아이가 따라 읽을 문장 (Figma 목소리 등록 · 기본)
-const VOICE_SENTENCE = '옛날 옛적에 꼬마 동화구연가가 살았어요.';
 
-type Modal = 'photo' | 'voice' | 'photoDenied' | null;
+type Modal = 'photo' | 'voice' | 'photoDenied' | 'micDenied' | null;
 
 type Props = {
   user: User;
@@ -84,6 +82,16 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
   const handleDefaultPhoto = () => {
     replacePhoto(null);
     setModal(null);
+  };
+
+  const handleVoiceSaved = () => {
+    setModal(null);
+    show('목소리를 등록했어요');
+  };
+
+  const handleVoiceError = (message: string) => {
+    setModal(null);
+    show(message);
   };
 
   const handleAlbum = async () => {
@@ -164,18 +172,25 @@ export default function SettingsScreen({ user, onSignOut }: Props) {
         onPressDefault={handleDefaultPhoto}
         onPressAlbum={handleAlbum}
       />
-      {/* 녹음 · 소음 검사 · 자동 저장은 다음 작업에서 연결해요. 지금은 기본(idle) 상태만 보여줘요. */}
       <VoiceRecordModal
         visible={modal === 'voice'}
         onClose={() => setModal(null)}
-        sentence={VOICE_SENTENCE}
-        mode="idle"
+        onSaved={handleVoiceSaved}
+        onDenied={() => setModal('micDenied')}
+        onError={handleVoiceError}
       />
       <AlertModal
         visible={modal === 'photoDenied'}
         tone="pink"
         title="사진을 볼 수 없어요"
         message="기기 설정에서 사진 접근을 허용해 주세요"
+        onAction={() => setModal(null)}
+      />
+      <AlertModal
+        visible={modal === 'micDenied'}
+        tone="pink"
+        title="마이크를 쓸 수 없어요"
+        message="기기 설정에서 마이크 접근을 허용해 주세요"
         onAction={() => setModal(null)}
       />
       <Toast toast={toast} top={300} />

@@ -73,6 +73,8 @@ type RequestOptions = {
   body?: unknown;
   signal?: AbortSignal;
   timeoutMs?: number;
+  onStatus?: (status: number) => void;
+  verifySessionOnUnauthorized?: boolean;
 };
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -83,7 +85,14 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 // 응답 헤더도 함께 돌려줘요. (로그인 · 회원가입은 토큰을 Authorization 응답 헤더로 줘요)
 export async function requestWithHeaders<T>(
   path: string,
-  { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {},
+  {
+    method = 'GET',
+    body,
+    signal,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    onStatus,
+    verifySessionOnUnauthorized = false,
+  }: RequestOptions = {},
 ): Promise<{ data: T; headers: Headers }> {
   // 부른 쪽의 취소와 타임아웃을 하나의 signal 로 묶어요.
   const controller = new AbortController();
@@ -119,8 +128,31 @@ export async function requestWithHeaders<T>(
       throw new ApiError(0, 'NETWORK', '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요');
     }
 
-    if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
+    if (res.status === 401 && 'Authorization' in headers) {
+      // 이전 로그인에서 늦게 돌아온 응답이 새 세션을 지우지 않게 해요.
+      const current = await authHeaders();
+      if (headers.Authorization === current.Authorization) {
+        if (verifySessionOnUnauthorized) {
+          try {
+            await request('/api/users/profile', { signal: controller.signal });
+          } catch (error) {
+            // 프로필의 실제 401만 공용 처리에서 로그아웃시켜요.
+            // 네트워크/5xx로는 세션 만료를 판단하지 않아요.
+            if (signal?.aborted) throw error;
+          }
+        } else {
+          notifyUnauthorized();
+        }
+      }
+      const error = await toApiError(res, '요청이 거절됐어요');
+      throw new ApiError(
+        error.status,
+        error.code,
+        `${error.message} (HTTP 401 · ${method} ${path.split('?')[0]})`,
+      );
+    }
     if (!res.ok) throw await toApiError(res, '요청을 처리하지 못했어요');
+    onStatus?.(res.status);
 
     // 본문이 없는 응답(204 등)만 허용하고, 2xx 인데 JSON 이 아니면 오류로 봐요.
     let text = '';

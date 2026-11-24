@@ -3,4 +3,5 @@
 export type StorySummary = {
   id: string;
   title: string;
+  authorName?: string;
 };

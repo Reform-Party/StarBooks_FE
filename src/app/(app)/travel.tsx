@@ -9,7 +9,7 @@ export default function TravelRoute() {
       onSelectStory={(story) =>
         router.push({
           pathname: '/story/[id]',
-          params: { id: story.id },
+          params: { id: story.id, from: 'travel' },
         })
       }
     />

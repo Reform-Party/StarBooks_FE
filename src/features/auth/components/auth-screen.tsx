@@ -5,16 +5,15 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import GlassIconButton from '@/components/ui/glass-icon-button';
 import Panel from '@/components/ui/panel';
 import Stage from '@/components/ui/stage';
-import { PORTRAIT_SCREEN } from '@/constants/layout';
+import { SCREEN } from '@/constants/layout';
 import { DURATION } from '@/constants/motion';
 
-const KEYBOARD_MIN_FIT = 0.8;
+// 가로 화면은 키보드가 높이의 절반쯤을 가려서, 패널이 다 보이도록 더 작게까지 줄여요.
+const KEYBOARD_MIN_FIT = 0.6;
 
 type Props = {
-  // 패널 위에 놓는 제목 (로그인의 "별나라 책방")
-  hero?: ReactNode;
-  // 패널 안 맨 위 (회원가입의 "회원가입 1 / 2")
-  header?: ReactNode;
+  // 패널 안 맨 위 제목 (로그인의 "별나라 책방" · 회원가입의 "회원가입 1 / 2")
+  header: ReactNode;
   // 왼쪽 위 뒤로 가기 버튼
   onBack?: () => void;
   backLabel?: string;
@@ -23,11 +22,10 @@ type Props = {
   children: ReactNode;
 };
 
-// 로그인 · 회원가입 · 아이 정보 공통 틀 (세로 402 × 874 · 패널 폭 338)
+// 로그인 · 회원가입 · 아이 정보 공통 틀 (Figma design: 가로 874 × 402 · 가운데 패널 340 · 입력칸 290)
 // 패널은 아래에서 12pt 올라오며 나타나요. 키보드가 올라오면 캔버스가 줄어 입력칸이 가리지 않아요.
-// 너무 작아지지 않게 폭 기준 배율의 KEYBOARD_MIN_FIT 까지만 줄이고, 넘치는 위아래(제목 등)는 잘려요.
+// 너무 작아지지 않게 폭 기준 배율의 KEYBOARD_MIN_FIT 까지만 줄이고, 넘치는 위아래는 잘려요.
 export default function AuthScreen({
-  hero,
   header,
   onBack,
   backLabel = '뒤로 가기',
@@ -37,19 +35,18 @@ export default function AuthScreen({
   return (
     // SDK 57 은 Android 도 edge-to-edge 라 창이 줄지 않아서, 두 플랫폼 모두 padding 으로 비켜요.
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
-      <Stage orientation="portrait" minFitRatio={KEYBOARD_MIN_FIT}>
+      <Stage minFitRatio={KEYBOARD_MIN_FIT}>
         {/* 키보드가 떠 있으면 뒤로 가기 · 토스트가 잘려 보여서, 빈 곳을 누르면 키보드를 닫아요.
             (iOS 는 바깥을 눌러도 닫히지 않고, 나이 칸 number-pad 는 리턴 키가 없어요) */}
         <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} accessible={false} />
         <View style={styles.center} pointerEvents="box-none">
-          {hero}
           <Animated.View
             entering={FadeInDown.duration(DURATION.modal).withInitialValues({
               transform: [{ translateY: 12 }],
             })}
           >
             <Panel style={styles.card}>
-              {header ? <View style={styles.header}>{header}</View> : null}
+              <View style={styles.header}>{header}</View>
               {children}
             </Panel>
           </Animated.View>
@@ -70,17 +67,8 @@ export default function AuthScreen({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  center: {
-    position: 'absolute',
-    top: 59,
-    bottom: 34,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 28,
-  },
-  card: { width: 338, paddingHorizontal: 24, paddingTop: 22, paddingBottom: 18, gap: 12 },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  card: { width: 340, paddingHorizontal: 25, paddingTop: 18, paddingBottom: 20, gap: 8 },
   header: { alignItems: 'center', marginBottom: 2 },
-  back: { position: 'absolute', top: PORTRAIT_SCREEN.topBarY, left: PORTRAIT_SCREEN.safeX },
+  back: { position: 'absolute', top: SCREEN.topBarY, left: SCREEN.safeX },
 });

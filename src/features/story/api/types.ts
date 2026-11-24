@@ -1,6 +1,7 @@
 // 동화 생성 · 동화 조회 API 타입 (노션 API 명세 기준)
 
 export type StoryPage = {
+  paragraphId?: number;
   page: number;
   text: string;
   imageUrl: string | null;

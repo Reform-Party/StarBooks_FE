@@ -82,6 +82,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return data;
 }
 
+// 응답 헤더도 함께 돌려줘요. (로그인 · 회원가입은 토큰을 Authorization 응답 헤더로 줘요)
 export async function requestWithHeaders<T>(
   path: string,
   {

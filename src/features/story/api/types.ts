@@ -1,4 +1,4 @@
-// 동화 생성 · 동화 조회 API 타입. 백엔드 명세가 확정되면 여기서 맞춰요.
+// 동화 생성 · 동화 조회 API 타입 (노션 API 명세 기준)
 
 export type StoryPage = {
   paragraphId?: number;
@@ -30,23 +30,22 @@ export type Story = StoryMeta & {
   vocab?: StoryVocab[];
 };
 
-// POST /api/stories/generate 본문
+// POST /api/fairytales 본문 (API 명세 "동화 만들기"). 값은 make/constants/story-options 의 id 예요.
 export type GenerateRequest = {
-  lessonId: string;
-  speciesId: string;
-  backgroundId: string;
-  constellation: {
-    stars: { key: string; optionId: string; x: number; y: number; z: number }[];
-  };
+  background: string;
+  charSpecies: string;
+  morality: string;
 };
 
-// SSE 이벤트 (event: <이름>\ndata: <JSON>)
+// GET /api/fairytales/{fairytaleId}/sse 의 page_content 한 쪽 (API 명세 "SSE 통신 요청&받는 형식")
+export type PageContent = {
+  fairytaleId: number;
+  pageNo: number;
+  text: string[];
+  vocab: { word: string; meaning: string } | null;
+  imageUrl: string | null;
+};
+
+// SSE 이벤트. connect(연결됨) → page_content(한 쪽씩) → done(다 만듦)
 export type StoryEvent =
-  | { event: 'started'; data: { storyId: string; totalPages: number } }
-  | { event: 'meta'; data: StoryMeta }
-  | { event: 'text'; data: { page: number; delta: string } }
-  | { event: 'image'; data: { page: number; url: string } }
-  // 글 3문장과 첫 3쪽 그림이 준비됐다는 신호 → 읽기 화면으로 넘어가요.
-  | { event: 'ready'; data: { storyId: string } }
-  | { event: 'done'; data: { story: Story } }
-  | { event: 'error'; data: { code?: string; message?: string } };
+  { event: 'connect' } | { event: 'page'; data: PageContent } | { event: 'done' };

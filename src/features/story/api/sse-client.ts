@@ -4,7 +4,7 @@ import { API_URL, ApiError, authHeaders, notifyUnauthorized, toApiError } from '
 
 export type SseMessage = { event: string; data: unknown };
 
-// 이만큼 아무것도(:heartbeat 포함) 오지 않으면 연결이 조용히 끊긴 것으로 봐요.
+// 이만큼 아무것도(:heartbeat 포함) 오지 않으면 연결이 조용히 끊긴 것으로 보고 닫아요. (부른 쪽이 다시 연결해요)
 // Android 의 expo/fetch 는 OkHttp readTimeout 0 이라, 와이파이 ↔ LTE 전환 때 read() 가 끝나지 않아요.
 export const SSE_IDLE_TIMEOUT_MS = 30_000;
 
@@ -33,24 +33,26 @@ function parseBlock(block: string): SseMessage | null {
 }
 
 type StreamOptions = {
-  body: unknown;
   signal?: AbortSignal;
   onMessage: (message: SseMessage) => void;
 };
 
-// POST + Authorization 헤더가 필요해서 EventSource(GET 전용) 대신 fetch 스트림을 직접 읽어요.
+// Authorization 헤더가 필요해서 EventSource 대신 fetch(GET) 스트림을 직접 읽어요.
 // RN 기본 fetch 는 본문을 스트림으로 주지 않아 expo/fetch 를 써요.
 // 스트림이 끝나면 resolve, 연결 · HTTP 오류 · 무응답이면 ApiError 로 reject 해요.
 // 부른 쪽이 취소하면 받은 오류를 그대로 던지니, 부른 쪽은 오류 이름 대신 자기 signal 로 취소인지 판단해요.
-export async function streamSse(path: string, { body, signal, onMessage }: StreamOptions) {
+export async function streamSse(path: string, { signal, onMessage }: StreamOptions) {
   // 부른 쪽의 취소와 무응답 타임아웃을 하나로 묶어요.
   const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  if (signal?.aborted) controller.abort();
-  else signal?.addEventListener('abort', onAbort);
-
   let timedOut = false;
   let cancelReader: (() => void) | null = null;
+  // 부른 쪽이 닫으면 읽던 스트림도 같이 닫아요. (reader.cancel() 은 아래 무응답 처리와 같은 이유)
+  const onAbort = () => {
+    cancelReader?.();
+    controller.abort();
+  };
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', onAbort);
   let timer: ReturnType<typeof setTimeout> | undefined;
   // 무엇이든 받으면 타이머를 다시 맞춰요.
   const touch = () => {
@@ -72,26 +74,18 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
 
   try {
     touch();
-    const headers = await authHeaders({
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-    });
+    const headers = await authHeaders({ Accept: 'text/event-stream' });
 
     let res;
     try {
-      res = await fetch(`${API_URL}${path}`, {
-        method: 'POST',
-        signal: controller.signal,
-        headers,
-        body: JSON.stringify(body),
-      });
+      res = await fetch(`${API_URL}${path}`, { signal: controller.signal, headers });
     } catch (e) {
       return fail(e);
     }
 
     if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
-    if (!res.ok) throw await toApiError(res, '동화 만들기를 시작하지 못했어요');
-    if (!res.body) throw new ApiError(res.status, 'NO_STREAM', '동화 만들기를 시작하지 못했어요');
+    if (!res.ok) throw await toApiError(res, '동화를 받아 오지 못했어요');
+    if (!res.body) throw new ApiError(res.status, 'NO_STREAM', '동화를 받아 오지 못했어요');
 
     const reader = res.body.getReader();
     cancelReader = () => {
@@ -116,6 +110,8 @@ export async function streamSse(path: string, { body, signal, onMessage }: Strea
         const message = parseBlock(buffer.slice(0, sep));
         buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, '');
         if (message) onMessage(message);
+        // onMessage 안에서 닫았으면(done 등) 다음 read() 를 기다리지 않아요.
+        if (signal?.aborted) return fail(null);
         sep = buffer.search(/\r?\n\r?\n/);
       }
     }

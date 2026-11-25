@@ -2,24 +2,23 @@ import type { StarColor } from '@/constants/colors';
 
 // 동화 만들기 선택지. 교훈 12 · 주인공 종 3 · 배경 8 중에서 각각 꼭 하나씩 골라요.
 // 순서는 Figma 와이어프레임의 별 배치 순서예요.
-// 주인공 · 배경 id 는 관계도 게임 API 의 CharSpecies · Background 와 같은 값을 써요.
-// 교훈 id 는 아직 명세에 없어서 같은 규칙(UPPER_SNAKE)으로 정해 두었어요.
+// id 는 API 명세 "동화 만들기" 의 열거형 값이에요. (교훈 morality · 주인공 charSpecies · 배경 background)
 
 export type StoryOption = { id: string; label: string };
 
 export const LESSONS = [
-  { id: 'KINDNESS', label: '착한 마음씨' },
-  { id: 'YIELDING', label: '양보하기' },
-  { id: 'PERSISTENCE', label: '포기하지 않기' },
-  { id: 'WISDOM', label: '지혜로운 생각' },
+  { id: 'KINDNESS_REWARDED', label: '착한 마음씨' },
+  { id: 'NO_GREED', label: '양보하기' },
+  { id: 'PERSEVERANCE', label: '포기하지 않기' },
+  { id: 'USE_WISDOM', label: '지혜로운 생각' },
   { id: 'SELF_WORTH', label: '소중한 나' },
   { id: 'COURAGE', label: '용기 내기' },
   { id: 'LOVE_NATURE', label: '자연 사랑하기' },
-  { id: 'PROMISE', label: '약속 지키기' },
-  { id: 'HONESTY', label: '솔직한 마음' },
-  { id: 'DIVERSITY', label: '다름을 인정하기' },
-  { id: 'LISTENING', label: '말씀 잘 듣기' },
-  { id: 'TEAMWORK', label: '힘을 합쳐요' },
+  { id: 'KEEP_PROMISE', label: '약속 지키기' },
+  { id: 'NO_LYING', label: '솔직한 마음' },
+  { id: 'RESPECT_DIFF', label: '다름을 인정하기' },
+  { id: 'OBEY_ELDERS', label: '말씀 잘 듣기' },
+  { id: 'COOPERATION', label: '힘을 합쳐요' },
 ] as const satisfies readonly StoryOption[];
 
 export const SPECIES = [

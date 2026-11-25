@@ -1,12 +1,12 @@
 import { fetch } from 'expo/fetch';
 
-import { API_URL, ApiError, authHeaders, notifyUnauthorized, toApiError } from '@/lib/api-client';
+import { API_URL, ApiError, authHeaders, request, toApiError } from '@/lib/api-client';
 
 export type SseMessage = { event: string; data: unknown };
 
 // 이만큼 아무것도(:heartbeat 포함) 오지 않으면 연결이 조용히 끊긴 것으로 보고 닫아요. (부른 쪽이 다시 연결해요)
 // Android 의 expo/fetch 는 OkHttp readTimeout 0 이라, 와이파이 ↔ LTE 전환 때 read() 가 끝나지 않아요.
-export const SSE_IDLE_TIMEOUT_MS = 30_000;
+export const SSE_IDLE_TIMEOUT_MS = 90_000;
 
 const TIMEOUT_MESSAGE = '동화 서버가 응답하지 않아요. 다시 시도해 주세요';
 const NETWORK_MESSAGE = '서버에 연결할 수 없어요';
@@ -83,7 +83,8 @@ export async function streamSse(path: string, { signal, onMessage }: StreamOptio
       return fail(e);
     }
 
-    if (res.status === 401 && 'Authorization' in headers) notifyUnauthorized();
+    if (res.status === 401 && 'Authorization' in headers)
+      await request('/api/users/profile', { signal: controller.signal });
     if (!res.ok) throw await toApiError(res, '동화를 받아 오지 못했어요');
     if (!res.body) throw new ApiError(res.status, 'NO_STREAM', '동화를 받아 오지 못했어요');
 

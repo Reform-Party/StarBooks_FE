@@ -25,6 +25,8 @@ type GenerationData = {
   meta: StoryMeta | null;
   pages: StoryPage[];
   error: string | null;
+  retryAction: 'retry' | 'bookshelf';
+  receivedDone: boolean;
 };
 
 type GenerationState = GenerationData & {
@@ -41,18 +43,15 @@ const INITIAL: GenerationData = {
   meta: null,
   pages: [],
   error: null,
+  retryAction: 'retry',
+  receivedDone: false,
 };
 
 const FALLBACK_ERROR = '동화를 만들지 못했어요';
-const LOST_ERROR = '연결이 끊어졌어요. 다시 시도해 주세요';
 
-// 명세: 연결은 1시간 유지, done 전에 끊기면 다시 연결해요.
-const MAX_WAIT_MS = 60 * 60 * 1000;
+// 서버 작업과 별개로 한 번의 결과 확인은 10분까지만 기다려요.
+const MAX_WAIT_MS = 600_000;
 const RECONNECT_DELAY_MS = 2_000;
-// 다시 연결해도 새 쪽이 이만큼 연속으로 없으면, 받은 쪽이 있으면 끝난 것으로 · 없으면 실패로 봐요.
-// (done 을 연결이 끊긴 사이에 보냈으면 다시 오지 않아요)
-const MAX_IDLE_ROUNDS = 3;
-
 // 같은 별 세 개를 골랐는지
 export const isSameSelection = (a: GenerateRequest, b: GenerateRequest) =>
   a.background === b.background && a.charSpecies === b.charSpecies && a.morality === b.morality;
@@ -130,40 +129,43 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
   // 연결이 끊긴 사이에 보낸 쪽은 SSE 로 다시 오지 않아서, 동화 조회로 채워요.
   const catchUp = async (id: string, signal: AbortSignal): Promise<Story | null> => {
     try {
-      const story = await fetchStory(id);
+      const story = await fetchStory(id, signal);
       if (signal.aborted) return null;
       set({ meta: { title: story.title } });
       return story;
-    } catch {
+    } catch (error) {
+      if (isFatal(error)) throw error;
       return null;
     }
   };
 
-  // complete: done 을 받았는지. done 없이 새 쪽이 끊겨 끝낸 경우(추정 종료)는 false 예요.
-  const finish = async (id: string, signal: AbortSignal, complete: boolean) => {
+  // 완료 신호를 받은 뒤에만 완성 상태로 바꿔요.
+  const finish = async (id: string, signal: AbortSignal) => {
     const story = await catchUp(id, signal);
     if (signal.aborted) return;
-    if (story) {
-      addPages(story.pages);
-      // done 을 받은 동화만 캐시에 넣어 같은 id 를 다시 열 때 재요청하지 않아요.
-      // 추정 종료면 뒷부분이 빠졌을 수 있어서 넣지 않고, 다음에 열 때 다시 조회해요. (use-story 는 staleTime: Infinity)
-      if (complete) queryClient.setQueryData(['story', id], story);
+    if (
+      !story ||
+      story.id !== id ||
+      !story.pages.length ||
+      !story.pages.every((page, i) => page.page === i + 1 && page.text.trim())
+    ) {
+      throw new ApiError(
+        0,
+        'RESULT_PENDING',
+        '완료된 동화의 내용을 아직 받지 못했어요. 결과를 다시 확인해 주세요.',
+      );
     }
+    addPages(story.pages);
+    queryClient.setQueryData(['story', id], story);
     const { pages } = get();
-    if (!pages.length) {
-      set({ status: 'error', error: FALLBACK_ERROR });
-      return;
-    }
     set({ status: 'done', totalPages: pages.length });
   };
 
   // done 을 받을 때까지 SSE 에 붙어 있어요. 끊기면 빠진 쪽을 채우고 다시 연결해요.
   const follow = async (id: string, current: AbortController) => {
     const { signal } = current;
-    const startedAt = Date.now();
-    let idleRounds = 0;
+
     for (;;) {
-      let progressed = false;
       let done = false;
       // 연결마다 따로 닫을 수 있게 해요. done 을 받으면 서버가 연결을 유지해도 이 연결만 닫고 바로 끝내요.
       const round = new AbortController();
@@ -174,9 +176,10 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
           signal: round.signal,
           onEvent: (e) => {
             if (signal.aborted) return;
-            if (e.event === 'page') progressed = addPages([toPage(e.data)]) || progressed;
+            if (e.event === 'page') addPages([toPage(e.data)]);
             if (e.event === 'done') {
               done = true;
+              set({ receivedDone: true });
               round.abort();
             }
           },
@@ -192,31 +195,53 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
         signal.removeEventListener('abort', stop);
       }
       if (signal.aborted) return;
-      if (done) return finish(id, signal, true);
+      if (done) return finish(id, signal);
 
       const story = await catchUp(id, signal);
       if (signal.aborted) return;
-      if (story) progressed = addPages(story.pages) || progressed;
+      if (story) addPages(story.pages);
 
-      idleRounds = progressed ? 0 : idleRounds + 1;
-      if (idleRounds >= MAX_IDLE_ROUNDS || Date.now() - startedAt > MAX_WAIT_MS) {
-        if (get().pages.length) return finish(id, signal, false);
-        set({ status: 'error', error: LOST_ERROR });
-        return;
-      }
       await sleep(RECONNECT_DELAY_MS, signal);
       if (signal.aborted) return;
     }
   };
 
   const run = async (current: AbortController, work: () => Promise<void>) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await work();
+      await Promise.race([
+        work(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new ApiError(
+                  0,
+                  'RESULT_TIMEOUT',
+                  '아직 생성 완료를 확인하지 못했어요. 서버 작업은 계속될 수 있어요.',
+                ),
+              ),
+            MAX_WAIT_MS,
+          );
+        }),
+      ]);
     } catch (e) {
       if (current.signal.aborted) return;
       // TypeError 같은 내부 문구가 아이 화면에 보이지 않게, 서버 · 네트워크 오류 문구만 보여 줘요.
-      set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
+      current.abort();
+      const uncertain =
+        !get().storyId && !(e instanceof ApiError && isFatal(e) && e.status !== 409);
+      set({
+        status: 'error',
+        retryAction: uncertain ? 'bookshelf' : 'retry',
+        error: uncertain
+          ? '생성 요청 결과를 확인하지 못했어요. 중복 생성을 막기 위해 책장에서 먼저 확인해 주세요.'
+          : e instanceof ApiError
+            ? e.message
+            : FALLBACK_ERROR,
+      });
     } finally {
+      clearTimeout(timer);
       if (controller === current) controller = null;
     }
   };
@@ -225,6 +250,15 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     ...INITIAL,
 
     start: async (request) => {
+      const previous = get();
+      if (previous.status === 'connecting' || previous.status === 'ready') return;
+      if (previous.status === 'error') {
+        if (previous.retryAction === 'bookshelf') return;
+        if (previous.request && isSameSelection(previous.request, request) && previous.storyId) {
+          get().retry();
+          return;
+        }
+      }
       const current = begin();
       set({ ...INITIAL, status: 'connecting', request });
       await run(current, async () => {
@@ -237,14 +271,17 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
 
     // 동화를 이미 만들었으면 같은 동화에 다시 연결하고, 만들기 전에 실패했으면 새로 만들어요.
     retry: () => {
-      const { request, storyId, pages } = get();
+      const { request, storyId, pages, retryAction, status } = get();
+      if (retryAction === 'bookshelf' || status === 'connecting' || status === 'ready') return;
       if (!storyId) {
         if (request) void get().start(request);
         return;
       }
       const current = begin();
       set({ status: isReady(pages) ? 'ready' : 'connecting', error: null });
-      void run(current, () => follow(storyId, current));
+      void run(current, () =>
+        get().receivedDone ? finish(storyId, current.signal) : follow(storyId, current),
+      );
     },
 
     reset: () => {

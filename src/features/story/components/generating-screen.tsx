@@ -23,6 +23,7 @@ type Props = {
   // 실패했을 때의 안내 문구. 없으면 만드는 중이에요.
   error: string | null;
   onRetry: () => void;
+  retryLabel?: string;
   onHome: () => void;
 };
 
@@ -30,7 +31,12 @@ type Props = {
 //  상시: 별자리 회전 애니메이션 재사용 (세 별이 화면 세로축을 돌아요) · 말줄임 점 2s 반복
 //  2 준비 완료: 읽기 화면으로 자동 이동 (라우트에서 처리)
 //  3 생성 실패: 오류 안내 + 다시 시도 · 별 회전 멈춤
-export default function GeneratingScreen({ error, onRetry, onHome }: Props) {
+export default function GeneratingScreen({
+  error,
+  onRetry,
+  onHome,
+  retryLabel = '다시 시도',
+}: Props) {
   const failed = error != null;
   return (
     <Stage>
@@ -53,7 +59,7 @@ export default function GeneratingScreen({ error, onRetry, onHome }: Props) {
           </Text>
           <View style={styles.buttons}>
             <JellyButton tone="glass" label="메인으로" onPress={onHome} />
-            <JellyButton label="다시 시도" onPress={onRetry} />
+            <JellyButton label={retryLabel} onPress={onRetry} />
           </View>
         </View>
       ) : (

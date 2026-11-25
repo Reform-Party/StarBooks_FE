@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type Account = { email: string; password: string };
+type Account = { userId: string; password: string };
 
 type SignupDraftState = {
   account: Account | null;

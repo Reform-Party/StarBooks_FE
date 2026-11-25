@@ -1,6 +1,7 @@
 // 동화 생성 · 동화 조회 API 타입. 백엔드 명세가 확정되면 여기서 맞춰요.
 
 export type StoryPage = {
+  paragraphId?: number;
   page: number;
   text: string;
   imageUrl: string | null;

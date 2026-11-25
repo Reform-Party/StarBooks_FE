@@ -67,6 +67,7 @@ export async function fetchMyStories({
     stories: data.content.map((story) => ({
       id: String(story.fairytaleId),
       title: story.title,
+      authorName: story.authorName,
     })),
     page: data.number,
     totalPages: data.totalPages,

@@ -7,6 +7,7 @@ import Icon from '@/components/ui/icon';
 import JellyButton from '@/components/ui/jelly-button';
 import Stage from '@/components/ui/stage';
 import Toast from '@/components/ui/toast';
+import { STAR } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
 import MakeHeader from '@/features/make/components/make-header';
 import StarMap from '@/features/make/components/star-map';
@@ -68,7 +69,13 @@ export default function MakeStepScreen({ stepIndex }: Props) {
           height={36}
           onPress={() => goBackTo(stepIndex === 0 ? '/' : MAKE_STEPS[stepIndex - 1].href)}
         />
-        <JellyButton label="다음" height={36} onPress={handleNext} />
+        <JellyButton
+          label="다음"
+          icon={<Icon name="chevronRight" color={STAR.yellow.on} scale={0.8} />}
+          iconAfter
+          height={36}
+          onPress={handleNext}
+        />
       </View>
       <GlassIconButton
         icon="home"

@@ -9,6 +9,7 @@ import type {
   StoryMeta,
   StoryPage,
 } from '@/features/story/api/types';
+import { buildDummyStory } from '@/features/story/constants/dummy-story';
 import { ApiError } from '@/lib/api-client';
 import { queryClient } from '@/lib/query-client';
 
@@ -52,6 +53,13 @@ const RECONNECT_DELAY_MS = 2_000;
 // 다시 연결해도 새 쪽이 이만큼 연속으로 없으면, 받은 쪽이 있으면 끝난 것으로 · 없으면 실패로 봐요.
 // (done 을 연결이 끊긴 사이에 보냈으면 다시 오지 않아요)
 const MAX_IDLE_ROUNDS = 3;
+
+// 이만큼 기다려도 읽기 화면으로 못 넘어가면: 받은 쪽이 있으면 그것부터 보여 주고, 없으면 더미 동화로 대신해요.
+// (지금 서버는 첫 쪽이 30초쯤 와서 그보다 넉넉하게 둬요)
+const OPEN_TIMEOUT_MS = 45_000;
+// EXPO_PUBLIC_STORY_DUMMY=1 이면 서버를 부르지 않고 잠깐 뒤 더미 동화를 보여 줘요. (발표 · 시연용)
+const DUMMY_ONLY = process.env.EXPO_PUBLIC_STORY_DUMMY === '1';
+const DUMMY_DELAY_MS = 3_000;
 
 // 같은 별 세 개를 골랐는지
 export const isSameSelection = (a: GenerateRequest, b: GenerateRequest) =>
@@ -113,6 +121,32 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     return current;
   };
 
+  // 서버 대신 더미 동화로 끝내요. 지금 연결은 끊어요.
+  const showDummy = () => {
+    const { request } = get();
+    if (!request) return;
+    controller?.abort();
+    controller = null;
+    const story = buildDummyStory(request);
+    queryClient.setQueryData(['story', story.id], story);
+    set({
+      status: 'done',
+      storyId: story.id,
+      meta: { title: story.title },
+      pages: story.pages,
+      totalPages: story.pages.length,
+      error: null,
+    });
+  };
+
+  // 아직 한 쪽도 못 받았으면 더미로 대신하고, 읽던 중이면 오류 안내(다시 시도)를 보여 줘요.
+  // 4xx(요청 값 · 명세 차이 등)는 더미로 덮지 않고 오류 안내를 보여 줘요. (개발 중에 서버 문제를 놓치지 않게)
+  // 더미는 네트워크 · 시간 초과 · 5xx 일 때만이에요.
+  const fail = (error: string, cause?: unknown) => {
+    if (!isFatal(cause) && !get().pages.length && get().request) showDummy();
+    else set({ status: 'error', error });
+  };
+
   // 새 쪽이 늘었거나 그림이 새로 채워졌으면 true (글은 다 오고 그림만 늦게 오는 구간도 진행으로 봐요)
   const addPages = (incoming: StoryPage[]) => {
     if (!incoming.length) return false;
@@ -151,7 +185,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     }
     const { pages } = get();
     if (!pages.length) {
-      set({ status: 'error', error: FALLBACK_ERROR });
+      fail(FALLBACK_ERROR);
       return;
     }
     set({ status: 'done', totalPages: pages.length });
@@ -185,7 +219,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
         if (signal.aborted) return;
         if (!done && isFatal(e)) {
           current.abort();
-          set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
+          fail(e instanceof ApiError ? e.message : FALLBACK_ERROR, e);
           return;
         }
       } finally {
@@ -201,7 +235,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
       idleRounds = progressed ? 0 : idleRounds + 1;
       if (idleRounds >= MAX_IDLE_ROUNDS || Date.now() - startedAt > MAX_WAIT_MS) {
         if (get().pages.length) return finish(id, signal, false);
-        set({ status: 'error', error: LOST_ERROR });
+        fail(LOST_ERROR);
         return;
       }
       await sleep(RECONNECT_DELAY_MS, signal);
@@ -215,7 +249,7 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     } catch (e) {
       if (current.signal.aborted) return;
       // TypeError 같은 내부 문구가 아이 화면에 보이지 않게, 서버 · 네트워크 오류 문구만 보여 줘요.
-      set({ status: 'error', error: e instanceof ApiError ? e.message : FALLBACK_ERROR });
+      fail(e instanceof ApiError ? e.message : FALLBACK_ERROR, e);
     } finally {
       if (controller === current) controller = null;
     }
@@ -227,12 +261,28 @@ export const useGenerationStore = create<GenerationState>()((set, get) => {
     start: async (request) => {
       const current = begin();
       set({ ...INITIAL, status: 'connecting', request });
-      await run(current, async () => {
-        const id = await createFairytale(request, current.signal);
-        if (current.signal.aborted) return;
-        set({ storyId: id });
-        await follow(id, current);
-      });
+
+      if (DUMMY_ONLY) {
+        await sleep(DUMMY_DELAY_MS, current.signal);
+        if (!current.signal.aborted) showDummy();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        if (current.signal.aborted || get().status !== 'connecting') return;
+        if (get().pages.length) set({ status: 'ready' });
+        else showDummy();
+      }, OPEN_TIMEOUT_MS);
+      try {
+        await run(current, async () => {
+          const id = await createFairytale(request, current.signal);
+          if (current.signal.aborted) return;
+          set({ storyId: id });
+          await follow(id, current);
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     },
 
     // 동화를 이미 만들었으면 같은 동화에 다시 연결하고, 만들기 전에 실패했으면 새로 만들어요.

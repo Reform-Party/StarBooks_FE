@@ -28,7 +28,6 @@ const PANEL_W = 520;
 const PANEL_TOP = 58;
 // 해설은 서버가 만든 문장이라 길이를 알 수 없어요. 캔버스(402) 안에 들어오도록 본문만 스크롤돼요.
 const BODY_MAX_H = 150;
-const SCRIM = 'rgba(5,6,18,0.62)';
 
 // 관계 해설 (디자인 c2-explain): 종이 카드에 "A → B" + 서버가 준 관계 설명
 export default function ExplainModal({
@@ -43,7 +42,6 @@ export default function ExplainModal({
     <CenterModal
       visible
       top={PANEL_TOP}
-      scrimColor={SCRIM}
       // 안드로이드 뒤로 가기 · 바깥 터치는 게임을 떠나지 않고 해설만 닫아요 (X 와 같아요)
       onRequestClose={onNext}
       panelStyle={styles.panel}

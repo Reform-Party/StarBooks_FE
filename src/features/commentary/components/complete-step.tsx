@@ -30,9 +30,6 @@ import {
 import { haptic } from '@/features/commentary/utils/haptics';
 import { ApiError } from '@/lib/api-client';
 
-// 디자인 c3: 완성 패널 뒤로 별자리가 비쳐 보여요
-const SCRIM = 'rgba(5,6,18,0.45)';
-
 type Props = {
   nodes: GameNode[];
   categories: Category[];
@@ -140,7 +137,6 @@ export default function CompleteStep({ nodes, categories, placement, edges, onHo
       <CenterModal
         visible
         top={70}
-        scrimColor={SCRIM}
         passThrough
         // 뒤로 가기 · VoiceOver 닫기는 "메인으로" 와 같아요 (해설 모달이 열려 있으면 해설이 먼저 닫혀요)
         onRequestClose={onHome}

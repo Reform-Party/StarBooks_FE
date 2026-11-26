@@ -65,7 +65,7 @@ export async function uploadVoiceSample(fileUri: string): Promise<void> {
       throw new ApiError(
         error.status,
         error.code,
-        '목소리 등록 결과를 확인하지 못했어요. 잠시 후 등록 상태를 확인해 주세요.',
+        '목소리 등록 결과를 확인하지 못했어요. 연결을 확인한 뒤 책장에서 동화 재생을 눌러 주세요.',
       );
     throw error;
   }

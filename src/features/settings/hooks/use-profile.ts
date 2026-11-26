@@ -6,7 +6,7 @@ import {
   uploadVoiceSample,
 } from '@/features/settings/api/profile-api';
 import type { Profile, ProfileUpdate } from '@/features/settings/api/types';
-import { API_URL } from '@/lib/api-client';
+import { API_URL, ApiError } from '@/lib/api-client';
 
 const PROFILE_KEY = ['settings', 'profile'] as const;
 
@@ -44,13 +44,18 @@ export function useUpdateProfile({ onError }: { onError?: (error: Error) => void
 // 목소리 학습 요청. 녹음 화면에서 녹음 파일(.m4a) 경로를 넘겨요.
 export function useUploadVoiceSample() {
   const queryClient = useQueryClient();
+  const clearNarration = async () => {
+    for (const key of ['story-narration-request', 'story-narration-result']) {
+      await queryClient.cancelQueries({ queryKey: [key] });
+      queryClient.removeQueries({ queryKey: [key] });
+    }
+  };
   return useMutation({
     mutationFn: (fileUri: string) => uploadVoiceSample(fileUri),
-    onSuccess: async () => {
-      for (const key of ['story-narration-request', 'story-narration-result']) {
-        await queryClient.cancelQueries({ queryKey: [key] });
-        queryClient.removeQueries({ queryKey: [key] });
-      }
+    onSuccess: clearNarration,
+    onError: async (error) => {
+      if (error instanceof ApiError && ['NETWORK', 'TIMEOUT'].includes(error.code))
+        await clearNarration();
     },
   });
 }

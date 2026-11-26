@@ -85,7 +85,7 @@ type FairytaleDetailDto = {
 
 export async function fetchStory(id: string, signal?: AbortSignal): Promise<Story> {
   if (!isNumericStoryId(id)) {
-    throw new Error('동화 번호가 올바르지 않아요.');
+    throw new ApiError(0, 'INVALID_ID', '동화 번호가 올바르지 않아요.');
   }
 
   const data = await request<FairytaleDetailDto>(`/api/fairytales/${encodeURIComponent(id)}`, {

@@ -11,7 +11,6 @@ export default function GeneratingRoute() {
   const status = useGenerationStore((s) => s.status);
   const storyId = useGenerationStore((s) => s.storyId);
   const error = useGenerationStore((s) => s.error);
-  const retryAction = useGenerationStore((s) => s.retryAction);
   const retry = useGenerationStore((s) => s.retry);
   const reset = useGenerationStore((s) => s.reset);
   const missing = missingSteps(selection).length > 0;
@@ -32,10 +31,8 @@ export default function GeneratingRoute() {
   return (
     <GeneratingScreen
       error={status === 'error' ? error : null}
-      retryLabel={
-        retryAction === 'bookshelf' ? '책장에서 확인' : storyId ? '결과 다시 확인' : '다시 시도'
-      }
-      onRetry={retryAction === 'bookshelf' ? () => router.dismissTo('/islands') : retry}
+      retryLabel={storyId ? '결과 다시 확인' : '다시 시도'}
+      onRetry={retry}
       onHome={() => {
         reset();
         router.dismissTo('/');

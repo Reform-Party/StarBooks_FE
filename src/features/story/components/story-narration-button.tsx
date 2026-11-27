@@ -1,0 +1,248 @@
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { router, useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
+
+import ClickPressable from '@/components/ui/click-pressable';
+import { PAPER, STAR } from '@/constants/colors';
+import { FONT } from '@/constants/fonts';
+import { SCREEN } from '@/constants/layout';
+import { APP_AUDIO_MODE } from '@/features/sound/audio-mode';
+
+type Props = {
+  uri: string | null;
+  autoStart?: boolean;
+  onFinished?: () => void;
+  onProgress?: (currentTime: number, duration: number, playing: boolean) => void;
+  generationMessage?: string;
+  generating?: boolean;
+  onGenerationRetry?: () => Promise<void>;
+  onGenerate?: () => Promise<void>;
+};
+
+export default function StoryNarrationButton(props: Props) {
+  const [attempt, setAttempt] = useState(0);
+
+  return (
+    <NarrationControl key={attempt} {...props} onRetry={() => setAttempt((value) => value + 1)} />
+  );
+}
+
+function NarrationControl({
+  uri,
+  autoStart = false,
+  onFinished,
+  onProgress,
+  onRetry,
+  generationMessage,
+  generating,
+  onGenerationRetry,
+  onGenerate,
+}: Props & {
+  onRetry: () => void;
+}) {
+  const navigation = useNavigation();
+  const player = useAudioPlayer(uri);
+  const status = useAudioPlayerStatus(player);
+  const [actionError, setActionError] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!autoStart || !uri || !status.isLoaded) return;
+
+    let cancelled = false;
+
+    void Promise.resolve()
+      .then(async () => {
+        if (Platform.OS !== 'web') {
+          await setAudioModeAsync(APP_AUDIO_MODE);
+        }
+        if (!cancelled) player.play();
+      })
+      .catch(() => {
+        if (!cancelled) setActionError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [autoStart, uri, status.isLoaded, player]);
+
+  useEffect(() => {
+    let handled = false;
+
+    const subscription = player.addListener('playbackStatusUpdate', (next) => {
+      onProgress?.(next.currentTime, next.duration, next.playing);
+      if (next.playing) handled = false;
+
+      if (next.didJustFinish && !handled) {
+        handled = true;
+        onFinished?.();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [player, onFinished, onProgress]);
+
+  useEffect(() => {
+    // 다른 화면으로 이동할 때 일시정지해요.
+    // 컴포넌트가 제거될 때의 정리는 useAudioPlayer가 담당해요.
+    const unsubscribe = navigation.addListener('blur', () => {
+      player.pause();
+    });
+
+    return unsubscribe;
+  }, [navigation, player]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') player.pause();
+    });
+
+    return () => subscription.remove();
+  }, [player]);
+
+  const failed = actionError || Boolean(status.error);
+  const loading = Boolean(uri) && !failed && !status.isLoaded;
+  const disabled = (!uri && (!onGenerate || Boolean(generating))) || loading || busy;
+
+  const togglePlayback = async () => {
+    if (failed) {
+      onRetry();
+      return;
+    }
+
+    if (disabled) return;
+
+    if (!uri) {
+      await onGenerate?.();
+      return;
+    }
+
+    try {
+      if (player.playing) {
+        player.pause();
+        return;
+      }
+
+      setBusy(true);
+
+      if (Platform.OS !== 'web') {
+        await setAudioModeAsync(APP_AUDIO_MODE);
+      }
+
+      if (player.duration > 0 && player.currentTime >= player.duration - 0.05) {
+        await player.seekTo(0);
+      }
+
+      player.play();
+    } catch {
+      setActionError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const label = failed
+    ? '음성 다시 불러오기'
+    : !uri
+      ? (generationMessage ?? '이 쪽은 음성이 아직 없어요')
+      : loading
+        ? '음성 불러오는 중'
+        : status.playing
+          ? '읽어주기 일시정지'
+          : '이 쪽 읽어주기';
+
+  return (
+    <View style={styles.root}>
+      <ClickPressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled, busy: loading || busy || (!uri && generating) }}
+        disabled={disabled}
+        onPress={() => void togglePlayback()}
+        style={({ pressed }) => [
+          styles.button,
+          disabled && styles.disabled,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text accessible={false} maxFontSizeMultiplier={1} style={styles.symbol}>
+          {failed ? '↻' : loading || busy ? '…' : status.playing ? 'Ⅱ' : '▶'}
+        </Text>
+      </ClickPressable>
+
+      {failed ? (
+        <Text accessibilityRole="alert" maxFontSizeMultiplier={1.2} style={styles.message}>
+          음성을 재생하지 못했어요. ↻를 눌러 다시 불러와 주세요.
+        </Text>
+      ) : !uri && (generating || onGenerationRetry || !onGenerate) ? (
+        <View style={styles.message}>
+          <Text accessibilityLiveRegion="polite" style={styles.notice}>
+            {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}
+          </Text>
+          {onGenerationRetry ? (
+            <ClickPressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => void onGenerationRetry()}
+            >
+              <Text style={styles.action}>다시 확인</Text>
+            </ClickPressable>
+          ) : null}
+          {onGenerationRetry && generationMessage && !generating ? (
+            <ClickPressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => router.push('/settings')}
+            >
+              <Text style={styles.action}>설정에서 목소리 등록</Text>
+            </ClickPressable>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  notice: { color: '#FFFFFF', fontFamily: FONT.sans, fontSize: 12, lineHeight: 18 },
+  action: { color: STAR.yellow.c300, fontFamily: FONT.sans, fontSize: 12, paddingVertical: 10 },
+  root: {
+    position: 'absolute',
+    top: SCREEN.topBarY,
+    left: SCREEN.homeButtonX - 52,
+    zIndex: 2,
+  },
+  button: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: STAR.yellow.c300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  symbol: {
+    fontSize: 20,
+    color: PAPER.ink,
+  },
+  disabled: {
+    opacity: 0.45,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  message: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    width: 230,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#191935',
+    color: '#FFFFFF',
+    fontFamily: FONT.sans,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+});

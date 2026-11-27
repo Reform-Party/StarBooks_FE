@@ -1,18 +1,59 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { SKY } from '@/constants/colors';
+import { APP_FONTS } from '@/constants/fonts';
+import { useAuthStore } from '@/features/auth/store/auth-store';
+import BackgroundMusic from '@/features/sound/components/background-music';
+import { queryClient } from '@/lib/query-client';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+// 앱은 밤하늘 한 가지 테마만 써요. 화면이 바뀌는 사이에도 흰 바탕이 비치지 않게 맞춰요.
+const NAV_THEME = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: SKY.deep },
+};
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(APP_FONTS);
+  const status = useAuthStore((s) => s.status);
+  const restore = useAuthStore((s) => s.restore);
+
+  useEffect(() => {
+    restore();
+  }, [restore]);
+
+  // 글꼴과 로그인 상태가 준비될 때까지 스플래시를 보여 줘요.
+  const ready = (fontsLoaded || fontError != null) && status !== 'loading';
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+
+  if (!ready) return null;
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={NAV_THEME}>
+        <StatusBar style="light" hidden />
+        <BackgroundMusic />
+        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+          {/* 로그인 전에는 (auth), 로그인하면 (app) 만 열려요. 상태가 바뀌면 알아서 넘어가요.
+              막힌 경로로 들어오면 redirectTo 로 보내요. SDK 58 의 기본 fallback 은 index 가 없는 그룹(`/(auth)`)을
+              가리켜서 Unmatched Route 가 떠요. */}
+          <Stack.Protected guard={status === 'guest'} redirectTo="/">
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'authed'} redirectTo="/login">
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+        </Stack>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

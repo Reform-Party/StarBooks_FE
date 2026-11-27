@@ -20,12 +20,7 @@ let bgmWanted = false;
 export function loadSounds() {
   if (!click) {
     if (Platform.OS !== 'web') setAudioModeAsync(APP_AUDIO_MODE).catch(() => undefined);
-    const player = createAudioPlayer(CLICK_SOURCE);
-    // iOS 는 끝난 자리에서 play() 하면 다시 울리지 않아요. 끝나자마자 처음으로 되감아 둬요.
-    player.addListener('playbackStatusUpdate', (status) => {
-      if (status.didJustFinish) player.seekTo(0).catch(() => undefined);
-    });
-    click = player;
+    click = createAudioPlayer(CLICK_SOURCE);
   }
   if (!bgm) {
     bgm = createAudioPlayer(BGM_SOURCE);
@@ -35,21 +30,20 @@ export function loadSounds() {
 
 // 버튼 효과음. 설정에서 꺼 두면 울리지 않아요.
 export function playClick() {
-  if (!useSettingsStore.getState().sfx) return;
   loadSounds();
+  // 웹은 사용자가 누르기 전에는 자동 재생을 막아요. 효과음 설정과 상관없이 첫 탭에서 배경음악을 다시 틀어요.
+  if (Platform.OS === 'web' && bgmWanted && bgm && !bgm.playing) bgm.play();
+
+  if (!useSettingsStore.getState().sfx) return;
   const player = click;
   if (!player) return;
-  // 울리는 중에 또 누르면 되감은 뒤에 울려요. (seekTo 는 비동기라 play 가 먼저 처리되면 소리가 안 나요)
-  if (player.playing) {
-    player
-      .seekTo(0)
-      .then(() => player.play())
-      .catch(() => undefined);
-  } else {
-    player.play();
-  }
-  // 웹은 사용자가 누르기 전에는 자동 재생을 막아요. 첫 탭에서 배경음악을 다시 틀어요.
-  if (Platform.OS === 'web' && bgmWanted && bgm && !bgm.playing) bgm.play();
+  // 매번 처음으로 되감은 뒤에 울려요.
+  // - iOS 는 끝난 자리에서 play() 해도 다시 울리지 않고, seekTo 는 비동기라 play 를 먼저 부르면 소리가 안 나요.
+  // - 끝날 때 미리 되감아 두면 안드로이드는 되감기만으로 다시 재생돼서 효과음이 끝없이 반복돼요.
+  player
+    .seekTo(0)
+    .then(() => player.play())
+    .catch(() => undefined);
 }
 
 // 같은 값으로 다시 불러도 괜찮아요. 이어폰이 빠지는 등 네이티브가 멈춘 배경음악을 다시 틀 때도 써요.

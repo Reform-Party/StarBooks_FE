@@ -1,5 +1,6 @@
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import type { Category } from '@/features/commentary/api/types';
 import JellyLabel from '@/features/commentary/components/jelly-label';
 import JellyStar from '@/components/ui/jelly-star';
@@ -52,7 +53,7 @@ export default function Baskets({
         key={cat}
         style={[styles.basket, { left: basketX(i), top, width: BASKET_W, height }, frame]}
       >
-        <Pressable
+        <ClickPressable
           disabled={!armed}
           onPress={() => onBasketPress?.(i)}
           accessibilityRole={armed ? 'button' : undefined}

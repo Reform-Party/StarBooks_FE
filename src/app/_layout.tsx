@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { SKY } from '@/constants/colors';
 import { APP_FONTS } from '@/constants/fonts';
 import { useAuthStore } from '@/features/auth/store/auth-store';
+import BackgroundMusic from '@/features/sound/components/background-music';
 import { queryClient } from '@/lib/query-client';
 
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +41,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={NAV_THEME}>
         <StatusBar style="light" hidden />
+        <BackgroundMusic />
         <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
           {/* 로그인 전에는 (auth), 로그인하면 (app) 만 열려요. 상태가 바뀌면 알아서 넘어가요.
               막힌 경로로 들어오면 redirectTo 로 보내요. SDK 58 의 기본 fallback 은 index 가 없는 그룹(`/(auth)`)을

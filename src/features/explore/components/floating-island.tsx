@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { ISLAND_HEIGHT, ISLAND_WIDTH, type Island } from '@/features/explore/constants/islands';
@@ -49,7 +50,7 @@ export default function FloatingIsland({ island, storyCount, onPress }: Props) {
   const label = storyCount == null ? island.name : `${island.name}, 동화 ${storyCount}편`;
 
   return (
-    <Pressable
+    <ClickPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={() => onPress?.(island)}
@@ -75,7 +76,7 @@ export default function FloatingIsland({ island, storyCount, onPress }: Props) {
           </Text>
         ) : null}
       </Animated.View>
-    </Pressable>
+    </ClickPressable>
   );
 }
 

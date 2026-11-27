@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import Stage from '@/components/ui/stage';
 import ConstellationLoading from '@/features/explore/components/constellation-loading';
 import { INK, STAR } from '@/constants/colors';
@@ -68,7 +69,7 @@ function ConstellationMapContent({
           </Text>
         </View>
 
-        <Pressable
+        <ClickPressable
           accessibilityRole="button"
           accessibilityLabel="섬 선택으로 돌아가기"
           onPress={onBack}
@@ -77,7 +78,7 @@ function ConstellationMapContent({
           <Text maxFontSizeMultiplier={1.2} style={styles.backText}>
             섬 선택
           </Text>
-        </Pressable>
+        </ClickPressable>
 
         <ConstellationMapBody
           stories={stories}

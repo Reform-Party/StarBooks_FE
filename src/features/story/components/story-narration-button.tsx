@@ -1,11 +1,13 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import { PAPER, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { SCREEN } from '@/constants/layout';
+import { APP_AUDIO_MODE } from '@/features/sound/audio-mode';
 
 type Props = {
   uri: string | null;
@@ -53,7 +55,7 @@ function NarrationControl({
     void Promise.resolve()
       .then(async () => {
         if (Platform.OS !== 'web') {
-          await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+          await setAudioModeAsync(APP_AUDIO_MODE);
         }
         if (!cancelled) player.play();
       })
@@ -126,10 +128,7 @@ function NarrationControl({
       setBusy(true);
 
       if (Platform.OS !== 'web') {
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          shouldPlayInBackground: false,
-        });
+        await setAudioModeAsync(APP_AUDIO_MODE);
       }
 
       if (player.duration > 0 && player.currentTime >= player.duration - 0.05) {
@@ -156,7 +155,7 @@ function NarrationControl({
 
   return (
     <View style={styles.root}>
-      <Pressable
+      <ClickPressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled, busy: loading || busy || (!uri && generating) }}
@@ -171,7 +170,7 @@ function NarrationControl({
         <Text accessible={false} maxFontSizeMultiplier={1} style={styles.symbol}>
           {failed ? '↻' : loading || busy ? '…' : status.playing ? 'Ⅱ' : '▶'}
         </Text>
-      </Pressable>
+      </ClickPressable>
 
       {failed ? (
         <Text accessibilityRole="alert" maxFontSizeMultiplier={1.2} style={styles.message}>
@@ -183,22 +182,22 @@ function NarrationControl({
             {generationMessage ?? '이 쪽은 음성이 아직 없어요.'}
           </Text>
           {onGenerationRetry ? (
-            <Pressable
+            <ClickPressable
               accessibilityRole="button"
               hitSlop={8}
               onPress={() => void onGenerationRetry()}
             >
               <Text style={styles.action}>다시 확인</Text>
-            </Pressable>
+            </ClickPressable>
           ) : null}
           {onGenerationRetry && generationMessage && !generating ? (
-            <Pressable
+            <ClickPressable
               accessibilityRole="button"
               hitSlop={8}
               onPress={() => router.push('/settings')}
             >
               <Text style={styles.action}>설정에서 목소리 등록</Text>
-            </Pressable>
+            </ClickPressable>
           ) : null}
         </View>
       ) : null}

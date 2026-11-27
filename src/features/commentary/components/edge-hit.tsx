@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import { MIN_TOUCH } from '@/constants/layout';
 import type { Point } from '@/features/commentary/constants/board';
 
@@ -14,7 +15,7 @@ export default function EdgeHit({ from, to, label, onPress }: Props) {
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
   const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
   return (
-    <Pressable
+    <ClickPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}

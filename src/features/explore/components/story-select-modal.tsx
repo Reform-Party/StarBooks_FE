@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import CenterModal from '@/components/ui/center-modal';
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyStar from '@/components/ui/jelly-star';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -27,7 +28,7 @@ export default function StorySelectModal({
     <CenterModal visible={story !== null} onRequestClose={onClose} panelStyle={styles.panel}>
       {story ? (
         <>
-          <Pressable
+          <ClickPressable
             accessibilityRole="button"
             accessibilityLabel="동화 선택 닫기"
             onPress={onClose}
@@ -36,7 +37,7 @@ export default function StorySelectModal({
             <Text maxFontSizeMultiplier={1.2} style={styles.closeText}>
               ×
             </Text>
-          </Pressable>
+          </ClickPressable>
 
           <View style={styles.badge}>
             <Text maxFontSizeMultiplier={1.2} style={styles.badgeText}>
@@ -60,7 +61,7 @@ export default function StorySelectModal({
           ) : null}
 
           <View style={styles.actions}>
-            <Pressable
+            <ClickPressable
               accessibilityRole="button"
               accessibilityLabel={`${story.title}, 동화 읽기`}
               onPress={() => onRead(story)}
@@ -75,9 +76,9 @@ export default function StorySelectModal({
               <Text maxFontSizeMultiplier={1.2} style={styles.description}>
                 책을 펼쳐 읽어요
               </Text>
-            </Pressable>
+            </ClickPressable>
 
-            <Pressable
+            <ClickPressable
               accessibilityRole="button"
               accessibilityLabel={`${story.title}, 동화 해설`}
               disabled={!onCommentary}
@@ -98,7 +99,7 @@ export default function StorySelectModal({
               <Text maxFontSizeMultiplier={1.2} style={styles.description}>
                 {onCommentary ? '카드로 이야기를 정리해요' : '동화 해설은 준비 중이에요'}
               </Text>
-            </Pressable>
+            </ClickPressable>
           </View>
         </>
       ) : null}

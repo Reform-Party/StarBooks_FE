@@ -10,6 +10,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 
 import { MIN_TOUCH } from '@/constants/layout';
 import { DURATION, PRESS_SCALE, SPRING_EASING } from '@/constants/motion';
+import { playClick } from '@/features/sound/sound-players';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -22,12 +23,14 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
 };
 
 // 누르면 .92 로 작아졌다가 놓으면 스프링으로 돌아와요. (Press: active scale .92 · 200ms spring)
+// 눌렀을 때 버튼 효과음도 내요.
 export default function PressableScale({
   width,
   height,
   style,
   children,
   disabled,
+  onPress,
   onPressIn,
   onPressOut,
   ...rest
@@ -49,6 +52,13 @@ export default function PressableScale({
     onPressOut?.(e);
   };
 
+  // 버튼 효과음은 설정에서 꺼 두면 울리지 않아요.
+  // onPress 뒤에 울려서, 효과음 토글은 켤 때 소리가 나고 끌 때는 조용해요.
+  const handlePress = (e: GestureResponderEvent) => {
+    onPress?.(e);
+    playClick();
+  };
+
   const slopX = width != null ? Math.max(0, (MIN_TOUCH - width) / 2) : 0;
   const slopY = height != null ? Math.max(0, (MIN_TOUCH - height) / 2) : 0;
 
@@ -57,6 +67,7 @@ export default function PressableScale({
       accessibilityRole="button"
       disabled={disabled}
       hitSlop={{ left: slopX, right: slopX, top: slopY, bottom: slopY }}
+      onPress={onPress ? handlePress : undefined}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[style, animatedStyle]}

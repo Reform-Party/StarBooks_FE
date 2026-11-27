@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import Stage from '@/components/ui/stage';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -54,14 +55,14 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
           </Text>
 
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={onBack} style={styles.button}>
+            <ClickPressable accessibilityRole="button" onPress={onBack} style={styles.button}>
               <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
                 섬 선택
               </Text>
-            </Pressable>
+            </ClickPressable>
 
             {API_URL && query.isError ? (
-              <Pressable
+              <ClickPressable
                 accessibilityRole="button"
                 onPress={() => void query.refetch()}
                 style={styles.button}
@@ -69,7 +70,7 @@ function MyConstellationContent({ island, onBack, onSelectStory, onCommentary }:
                 <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
                   다시 시도
                 </Text>
-              </Pressable>
+              </ClickPressable>
             ) : null}
           </View>
         </View>

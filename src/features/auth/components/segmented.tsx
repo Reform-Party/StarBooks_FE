@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { TYPE } from '@/constants/typography';
@@ -22,7 +23,7 @@ export default function Segmented<T extends string>({ label, options, value, onC
         {options.map((o) => {
           const on = o.id === value;
           return (
-            <Pressable
+            <ClickPressable
               key={o.id}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
@@ -34,7 +35,7 @@ export default function Segmented<T extends string>({ label, options, value, onC
               ]}
             >
               <Text style={[styles.text, { color: on ? STAR.mint.on : INK[2] }]}>{o.label}</Text>
-            </Pressable>
+            </ClickPressable>
           );
         })}
       </View>

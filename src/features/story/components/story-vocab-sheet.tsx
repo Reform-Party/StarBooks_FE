@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import Icon from '@/components/ui/icon';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -79,14 +80,14 @@ export default function StoryVocabSheet({ vocab, onClose }: Props) {
             </Text>
           </View>
 
-          <Pressable
+          <ClickPressable
             accessibilityRole="button"
             accessibilityLabel="단어장 닫기"
             onPress={close}
             style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
           >
             <Icon name="x" scale={1.3} />
-          </Pressable>
+          </ClickPressable>
         </View>
 
         <FlatList

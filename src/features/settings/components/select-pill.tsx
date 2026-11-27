@@ -3,6 +3,7 @@ import { FlatList, Modal, Pressable, StyleSheet, View, type ViewInstance } from 
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import AppText from '@/components/ui/app-text';
+import ClickPressable from '@/components/ui/click-pressable';
 import Icon from '@/components/ui/icon';
 import PressableScale from '@/components/ui/pressable-scale';
 import { GLASS, INK, PANEL } from '@/constants/colors';
@@ -130,7 +131,7 @@ export default function SelectPill<T extends string | number>({
               renderItem={({ item }) => {
                 const isSelected = item.value === value;
                 return (
-                  <Pressable
+                  <ClickPressable
                     accessibilityRole="menuitem"
                     accessibilityState={{ selected: isSelected }}
                     onPress={() => handleSelect(item.value)}
@@ -145,7 +146,7 @@ export default function SelectPill<T extends string | number>({
                     >
                       {item.label}
                     </AppText>
-                  </Pressable>
+                  </ClickPressable>
                 );
               }}
             />

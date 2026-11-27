@@ -9,6 +9,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { useUploadVoiceSample } from '@/features/settings/hooks/use-profile';
+import { APP_AUDIO_MODE } from '@/features/sound/audio-mode';
 
 // Figma 목소리 등록: 약 1분 뒤 자동 저장 → 모달 닫힘. 말을 시작한 때가 아니라 녹음을 시작한 때부터 재요.
 const RECORD_MS = 60_000;
@@ -68,7 +69,8 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
     try {
       if (recorder.getStatus().isRecording) await recorder.stop();
     } finally {
-      await setAudioModeAsync({ allowsRecording: false });
+      // 녹음이 끝나면 앱 오디오 모드로 되돌려요. (빠진 항목은 iOS 가 기본값으로 바꿔 버려요)
+      await setAudioModeAsync({ ...APP_AUDIO_MODE, allowsRecording: false });
     }
   };
 
@@ -103,7 +105,7 @@ export function useVoiceRecording({ onSaved, onDenied, onError }: Options) {
         onDenied();
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await setAudioModeAsync({ ...APP_AUDIO_MODE, allowsRecording: true });
       await recorder.prepareToRecordAsync();
       if (id !== session.current) return;
       recorder.record();

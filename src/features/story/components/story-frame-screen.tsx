@@ -1,19 +1,11 @@
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Easing, PanResponder, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import Chip from '@/components/ui/chip';
+import ClickPressable from '@/components/ui/click-pressable';
 import GlassIconButton from '@/components/ui/glass-icon-button';
 import Icon from '@/components/ui/icon';
 import JellyButton from '@/components/ui/jelly-button';
@@ -22,6 +14,7 @@ import { PAPER, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 import { RADIUS, SCREEN } from '@/constants/layout';
 import { TYPE } from '@/constants/typography';
+import { useBgmDuckWhileFocused } from '@/features/sound/hooks/use-bgm-pause';
 import type { StoryPage, StoryVocab } from '@/features/story/api/types';
 import StoryNarrationButton from '@/features/story/components/story-narration-button';
 import StoryVocabSheet from '@/features/story/components/story-vocab-sheet';
@@ -66,6 +59,8 @@ export default function StoryFrameScreen({
   onCommentary,
   narration,
 }: Props) {
+  // 동화를 읽는 동안 배경음악은 속삭이는 정도로 줄여서 낭독이 잘 들리게 해요.
+  useBgmDuckWhileFocused();
   const [activeSentence, setActiveSentence] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [vocabOpen, setVocabOpen] = useState(false);
@@ -235,7 +230,7 @@ export default function StoryFrameScreen({
             </ScrollView>
             {!turning && !streaming && !error && totalPages > 0 && index === totalPages - 1 ? (
               <View style={styles.completionActions}>
-                <Pressable
+                <ClickPressable
                   accessibilityRole="button"
                   accessibilityLabel="메인으로"
                   onPress={onHome}
@@ -245,7 +240,7 @@ export default function StoryFrameScreen({
                   <Text maxFontSizeMultiplier={1.2} style={styles.completionHomeText}>
                     메인으로
                   </Text>
-                </Pressable>
+                </ClickPressable>
                 {onCommentary ? (
                   <JellyButton
                     label="동화 해설"
@@ -342,7 +337,7 @@ export default function StoryFrameScreen({
           </Text>
         ) : null}
 
-        <Pressable
+        <ClickPressable
           accessibilityRole="button"
           accessibilityLabel="이전 쪽"
           accessibilityState={{ disabled: index === 0 || turning }}
@@ -356,10 +351,10 @@ export default function StoryFrameScreen({
           ]}
         >
           <Icon name="chevronLeft" scale={0.8} />
-        </Pressable>
+        </ClickPressable>
 
         {hasNext ? (
-          <Pressable
+          <ClickPressable
             accessibilityRole="button"
             accessibilityLabel={!canNext ? '다음 쪽을 쓰는 중' : '다음 쪽'}
             accessibilityState={{ disabled: !canNext || turning }}
@@ -375,7 +370,7 @@ export default function StoryFrameScreen({
             <View style={styles.rightArrow} pointerEvents="none">
               <Icon name="chevronLeft" scale={0.8} />
             </View>
-          </Pressable>
+          </ClickPressable>
         ) : null}
 
         {onRetry ? (

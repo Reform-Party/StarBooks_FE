@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyStar from '@/components/ui/jelly-star';
 import { STAR, type StarColor } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -39,7 +40,7 @@ function splitTitle(title: string): string[] {
 
 export default function StoryStar({ story, onPress, authorName, color = 'yellow' }: Props) {
   return (
-    <Pressable
+    <ClickPressable
       accessibilityRole="button"
       accessibilityLabel={
         authorName ? `${story.title}, ${authorName} 작가, 동화 읽기` : `${story.title}, 동화 선택`
@@ -76,7 +77,7 @@ export default function StoryStar({ story, onPress, authorName, color = 'yellow'
           </Text>
         ) : null}
       </View>
-    </Pressable>
+    </ClickPressable>
   );
 }
 

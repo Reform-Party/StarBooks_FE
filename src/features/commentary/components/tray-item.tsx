@@ -1,8 +1,9 @@
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import type { GameNode } from '@/features/commentary/api/types';
 import Text from '@/features/commentary/components/app-text';
 import JellyStar from '@/components/ui/jelly-star';
@@ -84,7 +85,7 @@ export default function TrayItem({ node, selected, hidden, disabled, drag, onSel
   return (
     <GestureDetector gesture={pan}>
       <View style={[styles.item, hidden && styles.hidden]}>
-        <Pressable
+        <ClickPressable
           disabled={disabled}
           onPress={() => onSelect(selected ? null : id)}
           accessibilityRole="button"
@@ -109,7 +110,7 @@ export default function TrayItem({ node, selected, hidden, disabled, drag, onSel
           <Text style={styles.name} numberOfLines={2}>
             {node.word}
           </Text>
-        </Pressable>
+        </ClickPressable>
       </View>
     </GestureDetector>
   );

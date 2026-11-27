@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, type TextInputInstance, View } from 'react-native';
+import { StyleSheet, Text, type TextInputInstance, View } from 'react-native';
 
 import BrandTitle from '@/components/ui/brand-title';
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyButton from '@/components/ui/jelly-button';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -88,9 +89,13 @@ export default function LoginScreen({ initialUserId = '' }: Props) {
 
       <View style={styles.signupRow}>
         <Text style={styles.signupText}>처음 왔나요?</Text>
-        <Pressable accessibilityRole="link" hitSlop={10} onPress={() => router.push('/signup')}>
+        <ClickPressable
+          accessibilityRole="link"
+          hitSlop={10}
+          onPress={() => router.push('/signup')}
+        >
           <Text style={styles.signupLink}>회원가입</Text>
-        </Pressable>
+        </ClickPressable>
       </View>
     </AuthScreen>
   );

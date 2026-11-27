@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyStar from '@/components/ui/jelly-star';
 import { INK } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -83,7 +84,7 @@ export default function StarMap({ step, selectedId, onToggle, shakeKey }: Props)
             entering={FadeInDown.delay(spot.row * ROW_DELAY_MS).duration(350)}
             style={[styles.spot, { left: spot.x - SPOT_W / 2, top: spot.y - layout.size / 2 }]}
           >
-            <Pressable
+            <ClickPressable
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
               accessibilityLabel={o.label}
@@ -108,7 +109,7 @@ export default function StarMap({ step, selectedId, onToggle, shakeKey }: Props)
               >
                 {o.label}
               </Text>
-            </Pressable>
+            </ClickPressable>
           </Animated.View>
         );
       })}

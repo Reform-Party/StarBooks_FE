@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import Stage from '@/components/ui/stage';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -43,13 +44,13 @@ export default function SharedStoriesScreen({ onHome, onSelectStory }: Props) {
             동화 목록을 불러오지 못했어요
           </Text>
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={onHome} style={styles.button}>
+            <ClickPressable accessibilityRole="button" onPress={onHome} style={styles.button}>
               <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
                 메인으로
               </Text>
-            </Pressable>
+            </ClickPressable>
             {API_URL && query.isError ? (
-              <Pressable
+              <ClickPressable
                 accessibilityRole="button"
                 onPress={() => void query.refetch()}
                 style={styles.button}
@@ -57,7 +58,7 @@ export default function SharedStoriesScreen({ onHome, onSelectStory }: Props) {
                 <Text maxFontSizeMultiplier={1.2} style={styles.buttonText}>
                   다시 시도
                 </Text>
-              </Pressable>
+              </ClickPressable>
             ) : null}
           </View>
         </View>

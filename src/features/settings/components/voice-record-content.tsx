@@ -14,6 +14,7 @@ import {
   SAVING_MESSAGE,
   useVoiceRecording,
 } from '@/features/settings/hooks/use-voice-recording';
+import { useBgmPause } from '@/features/sound/hooks/use-bgm-pause';
 
 type Props = {
   onClose: () => void;
@@ -25,6 +26,8 @@ type Props = {
 // 목소리 등록 모달 안쪽. 모달이 열려 있는 동안만 마운트돼서, 녹음 · 상태 폴링 · 다시 그리기가 여기서 끝나요.
 // 마운트되면 녹음을 시작하고, 닫혀서 언마운트되면 녹음을 버려요.
 export default function VoiceRecordContent({ onClose, onSaved, onDenied, onError }: Props) {
+  // 배경음악이 목소리 녹음에 섞이지 않게 모달이 열려 있는 동안 멈춰요.
+  useBgmPause();
   const { status, level, elapsedMs } = useVoiceRecording({ onSaved, onDenied, onError });
   const warning = status === 'noisy' ? NOISE_WARNING : null;
   // 올리는 동안(최대 30초) 첫 문장으로 돌아가 처음 연 것처럼 보이지 않게 저장 중이라고 알려요.

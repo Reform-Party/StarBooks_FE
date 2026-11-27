@@ -22,9 +22,7 @@ type SettingsState = {
 type PersistedSettings = Pick<SettingsState, 'sfx' | 'bgm' | 'profiles'>;
 
 // v0 은 성별 · 나이도 기기에 덮어썼어요. 서버 값을 가리지 않게 사진만 남겨요.
-function migrate(persisted: unknown, version: number): PersistedSettings {
-  const state = persisted as PersistedSettings;
-  if (version >= 1) return state;
+function dropServerProfileFields(state: PersistedSettings): PersistedSettings {
   const profiles: Record<string, LocalProfile> = {};
   for (const [userId, p] of Object.entries(state.profiles ?? {})) {
     if (p.photoFile !== undefined) profiles[userId] = { photoFile: p.photoFile };
@@ -32,11 +30,19 @@ function migrate(persisted: unknown, version: number): PersistedSettings {
   return { ...state, profiles };
 }
 
+function migrate(persisted: unknown, version: number): PersistedSettings {
+  let state = persisted as PersistedSettings;
+  if (version < 1) state = dropServerProfileFields(state);
+  // v1 까지는 배경음악이 없어서 저장된 bgm 은 예전 기본값(false)이에요. 처음엔 켜진 채로 들려줘요.
+  if (version < 2) state = { ...state, bgm: true };
+  return state;
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       sfx: true,
-      bgm: false,
+      bgm: true,
       profiles: {},
       setSfx: (sfx) => set({ sfx }),
       setBgm: (bgm) => set({ bgm }),
@@ -47,7 +53,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings',
-      version: 1,
+      version: 2,
       migrate,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ sfx, bgm, profiles }) => ({ sfx, bgm, profiles }),

@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyStar from '@/components/ui/jelly-star';
 import { GLASS, INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -31,7 +32,7 @@ export default function MakeHeader({ title, selection, onJumpStep }: Props) {
         {MAKE_STEPS.map((s, i) => {
           const chosen = findOption(s.options, selection[s.key]);
           return (
-            <Pressable
+            <ClickPressable
               key={s.key}
               accessibilityRole="button"
               accessibilityLabel={
@@ -53,7 +54,7 @@ export default function MakeHeader({ title, selection, onJumpStep }: Props) {
               >
                 {chosen ? chosen.label : s.starLabel}
               </Text>
-            </Pressable>
+            </ClickPressable>
           );
         })}
       </View>

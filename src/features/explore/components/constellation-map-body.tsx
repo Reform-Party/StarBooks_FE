@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 
+import ClickPressable from '@/components/ui/click-pressable';
 import JellyStar from '@/components/ui/jelly-star';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
@@ -131,7 +132,7 @@ export default function ConstellationMapBody<T extends StorySummary>({
       </View>
 
       {hasPrevious ? (
-        <Pressable
+        <ClickPressable
           accessibilityRole="button"
           accessibilityLabel="이전 쪽"
           disabled={busy}
@@ -146,11 +147,11 @@ export default function ConstellationMapBody<T extends StorySummary>({
           <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
             ‹
           </Text>
-        </Pressable>
+        </ClickPressable>
       ) : null}
 
       {hasNext ? (
-        <Pressable
+        <ClickPressable
           accessibilityRole="button"
           accessibilityLabel="다음 쪽"
           disabled={busy}
@@ -161,7 +162,7 @@ export default function ConstellationMapBody<T extends StorySummary>({
           <Text maxFontSizeMultiplier={1.2} style={styles.arrowText}>
             ›
           </Text>
-        </Pressable>
+        </ClickPressable>
       ) : null}
 
       {pageCount > 0 ? (

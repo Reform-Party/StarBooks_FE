@@ -20,7 +20,7 @@ import type { StorySummary } from '@/features/explore/types/story';
 type Props<T extends StorySummary> = {
   stories: T[];
   pagination: ConstellationPagination;
-  tone: 'mint' | 'yellow';
+  tone: 'mint' | 'yellow' | 'pink';
   renderStar: (story: T) => ReactNode;
   emptyText: string;
   pageHint: string;
@@ -73,6 +73,7 @@ export default function ConstellationMapBody<T extends StorySummary>({
               lastPoint={lastPoint}
               hasPrevious={hasPrevious}
               hasNext={hasNext}
+              tone={tone}
             />
           ) : null}
 

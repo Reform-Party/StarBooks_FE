@@ -65,15 +65,15 @@ export default function OfflineShelfScreen({ onSelectStory, onReconnect, reconne
             hasNext: current < totalPages - 1,
             onPageChange: setPage,
           }}
-          tone="yellow"
+          tone="pink"
           edgeHints
           showEmptySlots
           emptyText="아직 저장한 동화가 없어요. 인터넷에 연결된 상태에서 읽은 동화가 여기에 저장돼요."
           pageHint="다른 쪽에도 저장한 동화가 있어요"
-          renderStar={(story) => <StoryStar story={story} onPress={onSelectStory} />}
+          renderStar={(story) => <StoryStar story={story} onPress={onSelectStory} color="pink" />}
         />
       ) : (
-        <ConstellationLoading tone="yellow" />
+        <ConstellationLoading tone="pink" />
       )}
     </Stage>
   );

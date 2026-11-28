@@ -83,16 +83,18 @@ function ConstellationMapContent({
         <ConstellationMapBody
           stories={stories}
           pagination={pagination}
-          tone="yellow"
+          tone="pink"
           blocked={isModalOpen || loading}
           busy={busy}
           edgeHints
           showEmptySlots
           emptyText={loading ? '' : '아직 이 섬에 동화가 없어요'}
           pageHint="다른 쪽에도 내가 만든 동화가 있어요"
-          renderStar={(story) => <StoryStar story={story} onPress={setSelectedStory} />}
+          renderStar={(story) => (
+            <StoryStar story={story} onPress={setSelectedStory} color="pink" />
+          )}
         />
-        {loading ? <ConstellationLoading tone="yellow" paused={paused} /> : null}
+        {loading ? <ConstellationLoading tone="pink" paused={paused} /> : null}
       </View>
 
       <StorySelectModal

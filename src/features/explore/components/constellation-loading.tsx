@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { INK, STAR } from '@/constants/colors';
 import { FONT } from '@/constants/fonts';
 
-type Props = { tone: 'yellow' | 'mint'; paused?: boolean };
+type Props = { tone: 'yellow' | 'mint' | 'pink'; paused?: boolean };
 
 export default function ConstellationLoading({ tone, paused = false }: Props) {
   const [visible, setVisible] = useState(false);

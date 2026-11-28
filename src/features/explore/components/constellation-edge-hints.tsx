@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 
 import JellyStar from '@/components/ui/jelly-star';
-import { STAR } from '@/constants/colors';
+import { STAR, type StarColor } from '@/constants/colors';
 import { SCREEN } from '@/constants/layout';
 import { STORY_STAR_ICON_SIZE } from '@/features/explore/components/story-star';
 
@@ -16,6 +16,7 @@ type Props = {
   lastPoint: Point;
   hasPrevious: boolean;
   hasNext: boolean;
+  tone: StarColor;
 };
 
 const PREVIEW_SIZE = STORY_STAR_ICON_SIZE;
@@ -27,6 +28,7 @@ export default function ConstellationEdgeHints({
   lastPoint,
   hasPrevious,
   hasNext,
+  tone,
 }: Props) {
   return (
     <View
@@ -42,7 +44,7 @@ export default function ConstellationEdgeHints({
             y1={EDGE_Y}
             x2={firstPoint.x}
             y2={firstPoint.y}
-            stroke={STAR.yellow.rim}
+            stroke={STAR[tone].rim}
             strokeWidth={2}
             strokeOpacity={0.3}
             strokeDasharray="5 7"
@@ -56,7 +58,7 @@ export default function ConstellationEdgeHints({
             y1={lastPoint.y}
             x2={SCREEN.width}
             y2={EDGE_Y}
-            stroke={STAR.yellow.rim}
+            stroke={STAR[tone].rim}
             strokeWidth={2}
             strokeOpacity={0.3}
             strokeDasharray="5 7"
@@ -67,13 +69,13 @@ export default function ConstellationEdgeHints({
 
       {hasPrevious ? (
         <View style={[styles.preview, styles.leftPreview]}>
-          <JellyStar size={PREVIEW_SIZE} color="yellow" />
+          <JellyStar size={PREVIEW_SIZE} color={tone} />
         </View>
       ) : null}
 
       {hasNext ? (
         <View style={[styles.preview, styles.rightPreview]}>
-          <JellyStar size={PREVIEW_SIZE} color="yellow" />
+          <JellyStar size={PREVIEW_SIZE} color={tone} />
         </View>
       ) : null}
     </View>

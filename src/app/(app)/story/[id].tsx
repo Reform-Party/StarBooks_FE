@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
+import { useOfflineStorySync } from '@/features/offline/hooks/use-offline-story-sync';
 import { isNumericStoryId, isValidStoryId } from '@/features/story/api/story-api';
 import StoryFrameScreen from '@/features/story/components/story-frame-screen';
 import { useStory } from '@/features/story/hooks/use-story';
@@ -41,6 +42,8 @@ export default function StoryRoute() {
   // 여행·출처 없는 진입에서는 기존 음성만 재생해요. 소유권은 서버에서도 검증해야 해요.
   const canGenerate = from !== 'travel' && (from === 'bookshelf' || openedLive);
   const narration = useStoryNarration(isNumericStoryId(id) ? id : null, saved.data, canGenerate);
+  // 온라인에서 연 동화와 확인된 음성은 오프라인 책장에서 읽을 수 있게 기기에 저장해요.
+  useOfflineStorySync(saved.data, narration.pages);
 
   if (live) {
     const failed = live.status === 'error';

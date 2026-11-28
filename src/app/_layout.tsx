@@ -37,6 +37,9 @@ export default function RootLayout() {
 
   if (!ready) return null;
 
+  // 막힌 경로로 들어오면 지금 상태의 첫 화면으로 보내요.
+  const home = status === 'offline' ? '/offline' : status === 'guest' ? '/login' : '/';
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={NAV_THEME}>
@@ -46,11 +49,15 @@ export default function RootLayout() {
           {/* 로그인 전에는 (auth), 로그인하면 (app) 만 열려요. 상태가 바뀌면 알아서 넘어가요.
               막힌 경로로 들어오면 redirectTo 로 보내요. SDK 58 의 기본 fallback 은 index 가 없는 그룹(`/(auth)`)을
               가리켜서 Unmatched Route 가 떠요. */}
-          <Stack.Protected guard={status === 'guest'} redirectTo="/">
+          <Stack.Protected guard={status === 'guest'} redirectTo={home}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
-          <Stack.Protected guard={status === 'authed'} redirectTo="/login">
+          <Stack.Protected guard={status === 'authed'} redirectTo={home}>
             <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          {/* 오프라인으로 켜면 로그인 · 메인 대신 저장한 동화 책장만 열려요. */}
+          <Stack.Protected guard={status === 'offline'} redirectTo={home}>
+            <Stack.Screen name="(offline)" />
           </Stack.Protected>
         </Stack>
       </ThemeProvider>

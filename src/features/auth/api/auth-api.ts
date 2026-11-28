@@ -78,6 +78,9 @@ export async function fetchMe(): Promise<User> {
   return { id, ...profile };
 }
 
+// 오프라인으로 켤 때 어느 계정의 저장한 동화를 보여 줄지 정해요. (로그아웃하면 지워져요)
+export const getSavedUserId = () => SecureStorage.getItem(USER_ID_KEY);
+
 export async function logout() {
   await setAccessToken(null);
   await SecureStorage.removeItem(USER_ID_KEY);

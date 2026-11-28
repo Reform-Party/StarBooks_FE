@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -39,6 +39,8 @@ type Props = {
   onHome: () => void;
   onCommentary?: () => void;
   narration?: StoryNarration;
+  // 화면 위에 띄울 모달. (Stage 안 마지막 자식으로 그려요)
+  overlay?: ReactNode;
 };
 
 // 동화 페이지 프레임 — SSE 로 들어오는 글 · 그림을 받는 대로 채워요.
@@ -58,6 +60,7 @@ export default function StoryFrameScreen({
   onHome,
   onCommentary,
   narration,
+  overlay,
 }: Props) {
   // 동화를 읽는 동안 배경음악은 속삭이는 정도로 줄여서 낭독이 잘 들리게 해요.
   useBgmDuckWhileFocused();
@@ -178,9 +181,9 @@ export default function StoryFrameScreen({
     <Stage>
       <View
         style={StyleSheet.absoluteFill}
-        pointerEvents={vocabOpen || turning ? 'none' : 'auto'}
-        accessibilityElementsHidden={vocabOpen}
-        importantForAccessibility={vocabOpen ? 'no-hide-descendants' : 'auto'}
+        pointerEvents={vocabOpen || turning || overlay ? 'none' : 'auto'}
+        accessibilityElementsHidden={vocabOpen || Boolean(overlay)}
+        importantForAccessibility={vocabOpen || overlay ? 'no-hide-descendants' : 'auto'}
       >
         <View style={styles.header}>
           {authorName?.trim() ? (
@@ -425,6 +428,7 @@ export default function StoryFrameScreen({
       </View>
 
       {vocabOpen ? <StoryVocabSheet vocab={vocab} onClose={() => setVocabOpen(false)} /> : null}
+      {overlay}
     </Stage>
   );
 }

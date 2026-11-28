@@ -14,6 +14,8 @@ type Props = {
   message?: string;
   actionLabel?: string;
   onAction: () => void;
+  // false 면 스크림을 눌러도 닫히지 않아요. 버튼(또는 뒤로 가기)으로만 닫혀요.
+  dismissOnScrimPress?: boolean;
 };
 
 // 젤리 별 + 제목 + 버튼 하나로 된 알림창 (Figma 패널 · 모달)
@@ -24,9 +26,15 @@ export default function AlertModal({
   message,
   actionLabel = '확인',
   onAction,
+  dismissOnScrimPress = true,
 }: Props) {
   return (
-    <CenterModal visible={visible} onRequestClose={onAction} panelStyle={styles.panel}>
+    <CenterModal
+      visible={visible}
+      onRequestClose={onAction}
+      dismissOnScrimPress={dismissOnScrimPress}
+      panelStyle={styles.panel}
+    >
       <JellyStar color={tone} size={48} />
       <Text accessibilityRole="header" style={[TYPE.heading, styles.title]}>
         {title}

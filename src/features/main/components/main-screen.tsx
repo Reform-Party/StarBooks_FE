@@ -26,7 +26,7 @@ export default function MainScreen({ onStartMake }: Props) {
       reverse: true,
       onPress: () => router.push('/travel'),
     },
-    { label: '동화 책장', tone: 'mint', onPress: () => router.push('/islands') },
+    { label: '동화 책장', tone: 'pink', onPress: () => router.push('/islands') },
   ];
 
   return (
